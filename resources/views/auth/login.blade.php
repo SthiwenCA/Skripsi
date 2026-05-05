@@ -1,62 +1,77 @@
-<x-guest-layout>
-    <!-- Session Status -->
-    <x-auth-session-status class="mb-4" :status="session('status')" />
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <form method="POST" action="{{ route('login') }}">
-        @csrf
+    <title>Login - Map Kerusakan Jalan</title>
 
-        <!-- Email Address -->
-        <div>
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" />
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
-        </div>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.bunny.net">
+    <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
-        <!-- Password -->
-        <div class="mt-4">
-            <x-input-label for="password" :value="__('Password')" />
+    <!-- Memanggil Tailwind CSS -->
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+</head>
+<body class="font-sans antialiased bg-white flex items-center justify-center min-h-screen">
 
-            <x-text-input id="password" class="block mt-1 w-full"
-                            type="password"
-                            name="password"
-                            required autocomplete="current-password" />
+    <!-- KOTAK CARD LOGIN -->
+    <!-- Warna background disesuaikan dengan gambar (#e6d7cf) -->
+    <div class="w-full max-w-md bg-[#e6dcd3] p-10 rounded-2xl shadow-lg">
+        
+        <h2 class="text-center text-[15px] font-semibold text-gray-800 mb-8 tracking-wide">
+            Login untuk lanjut ke aplikasi
+        </h2>
 
-            <x-input-error :messages="$errors->get('password')" class="mt-2" />
-        </div>
+        <form method="POST" action="{{ route('login') }}">
+            @csrf
 
-        <!-- Remember Me -->
-        <div class="block mt-4">
-            <label for="remember_me" class="inline-flex items-center">
-                <input id="remember_me" type="checkbox"
-                    class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
-                    name="remember">
-                <span class="ms-2 text-sm text-gray-600">Remember me</span>
-            </label>
-        </div>
-
-        <!-- ACTION -->
-        <div class="flex items-center justify-between mt-4">
-
-            <!-- LEFT: REGISTER -->
-            <a href="{{ route('register') }}"
-               class="text-sm text-gray-600 hover:text-gray-900 underline">
-                Sign up
-            </a>
-
-            <!-- RIGHT: FORGOT + LOGIN -->
-            <div class="flex items-center gap-3">
-                @if (Route::has('password.request'))
-                    <a class="underline text-sm text-gray-600 hover:text-gray-900"
-                       href="{{ route('password.request') }}">
-                        Forgot Password?
-                    </a>
-                @endif
-
-                <x-primary-button>
-                    Log in
-                </x-primary-button>
+            <!-- INPUT USERNAME (Memakai name="email" untuk backend bawaan Laravel) -->
+            <div class="mb-5">
+                <label for="email" class="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                <input id="email" type="email" name="email" value="{{ old('email') }}" required autofocus
+                    class="w-full px-4 py-3 rounded-full border-none focus:ring-2 focus:ring-[#4a3219] shadow-sm text-gray-900">
             </div>
 
-        </div>
-    </form>
-</x-guest-layout>
+            <!-- INPUT PASSWORD -->
+            <div class="mb-2">
+                <label for="password" class="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+                <input id="password" type="password" name="password" required
+                    class="w-full px-4 py-3 rounded-full border-none focus:ring-2 focus:ring-[#4a3219] shadow-sm text-gray-900">
+            </div>
+
+            <!-- LUPA PASSWORD -->
+            <div class="flex justify-end mb-4">
+                @if (Route::has('password.request'))
+                    <a href="{{ route('password.request') }}" class="text-sm font-medium text-gray-800 hover:text-gray-600 transition">
+                        Lupa Password?
+                    </a>
+                @endif
+            </div>
+
+            <!-- PANAH 1: ERROR MESSAGE -->
+            <!-- Akan muncul otomatis dengan warna merah jika kombinasi email/password salah -->
+            @if ($errors->any())
+                <div class="text-red-600 text-sm font-semibold mb-4">
+                    {{ $errors->first() }}
+                </div>
+            @endif
+
+            <!-- TOMBOL LOGIN -->
+            <button type="submit" class="w-full bg-[#4a2e1b] text-white py-3 mt-2 rounded-lg font-bold text-lg hover:bg-[#382314] transition shadow-md">
+                Login
+            </button>
+
+            <!-- PANAH 2: LINK REGISTER -->
+            <div class="text-center mt-6 text-sm font-semibold text-gray-800">
+                Tidak Punya Akun? 
+                <a href="{{ route('register') }}" class="text-blue-600 hover:underline hover:text-blue-800 transition">
+                    Register
+                </a>
+            </div>
+        </form>
+    </div>
+
+</body>
+</html>
