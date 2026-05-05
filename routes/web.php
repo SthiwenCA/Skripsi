@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\RoadDamageSubmissionController;
 use Illuminate\Support\Facades\Route;
 
 // =========================================================
@@ -23,14 +24,21 @@ Route::redirect('/dashboard', '/')->name('dashboard');
 
 
 // =========================================================
-// 3. PENGATURAN PROFIL (PRIVATE)
+// 3. FITUR KHUSUS USER (PRIVATE)
 // =========================================================
-// Rute ini bawaan Laravel Breeze untuk mengubah nama, email, dan password.
-// Wajib login untuk bisa mengakses rute ini.
+// Rute-rute di bawah ini wajib login untuk bisa diakses.
 Route::middleware('auth')->group(function () {
+    
+    // --- PENGATURAN PROFIL ---
+    // Bawaan Laravel Breeze untuk mengubah nama, email, dan password.
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // --- FORM PELAPORAN KERUSAKAN JALAN ---
+    // Rute untuk menampilkan halaman form upload dan memproses data yang disubmit
+    Route::get('/submissions/create', [RoadDamageSubmissionController::class, 'create'])->name('submissions.create');
+    Route::post('/submissions', [RoadDamageSubmissionController::class, 'store'])->name('submissions.store');
 });
 
 // Memanggil rute-rute otentikasi bawaan Breeze (Login, Register, Logout, dll)

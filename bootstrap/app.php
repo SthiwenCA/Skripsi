@@ -16,7 +16,12 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
 
-        //
+        // =========================================================
+        // MENGATUR ARAH SETELAH LOGIN (HOME)
+        // =========================================================
+        // Jika user yang sudah login mencoba mengakses form login/register 
+        // atau menekan tombol back, mereka akan dikembalikan ke halaman Map ('/')
+        $middleware->redirectUsersTo('/');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

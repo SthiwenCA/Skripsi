@@ -20,9 +20,20 @@
     <!-- Warna background disesuaikan dengan gambar (#e6d7cf) -->
     <div class="w-full max-w-md bg-[#e6dcd3] p-10 rounded-2xl shadow-lg">
         
-        <h2 class="text-center text-[15px] font-semibold text-gray-800 mb-8 tracking-wide">
-            Login untuk lanjut ke aplikasi
-        </h2>
+        <!-- HEADER DENGAN TOMBOL BACK -->
+        <div class="relative flex items-center justify-center mb-8">
+            <!-- Tombol Back Kiri -->
+            <a href="{{ url('/') }}" class="absolute left-0 text-gray-700 hover:text-[#4a2e1b] transition duration-200" title="Kembali ke Peta">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+            </a>
+            
+            <!-- Tulisan Tengah -->
+            <h2 class="text-[15px] font-semibold text-gray-800 tracking-wide m-0">
+                Login untuk lanjut ke aplikasi
+            </h2>
+        </div>
 
         <form method="POST" action="{{ route('login') }}">
             @csrf

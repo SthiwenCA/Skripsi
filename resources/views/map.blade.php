@@ -22,6 +22,28 @@
     <!-- Kontainer Full Screen -->
     <div class="relative w-screen h-screen overflow-hidden bg-gray-100">
         
+        <!-- ========================================== -->
+        <!-- NOTIFIKASI SUKSES (Muncul setelah submit form) -->
+        <!-- ========================================== -->
+        @if (session('success'))
+            <div id="toast-success" class="absolute top-20 left-1/2 transform -translate-x-1/2 z-[1000] bg-[#4a3219] text-white px-6 py-3 rounded-full shadow-xl font-semibold flex items-center gap-3 transition-opacity duration-500">
+                <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                </svg>
+                {{ session('success') }}
+            </div>
+            <script>
+                // Hilangkan notifikasi setelah 3 detik
+                setTimeout(() => {
+                    const toast = document.getElementById('toast-success');
+                    if(toast) {
+                        toast.classList.add('opacity-0');
+                        setTimeout(() => toast.remove(), 500);
+                    }
+                }, 3000);
+            </script>
+        @endif
+
         <!-- 1. TOMBOL BUKA SIDEBAR -->
         <button id="openSidebar" class="absolute top-4 left-4 z-[500] bg-[#4a3219] text-white p-2 rounded-md shadow-md hover:bg-[#382613] transition">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -122,15 +144,15 @@
             <div class="p-6 shrink-0 border-t border-[#d8c8b8]">
                 <p class="font-bold text-center text-gray-900 mb-2">Upload Photos</p>
                 @auth
-                    <!-- JIKA SUDAH LOGIN -->
-                    <button class="w-full flex items-center justify-center gap-2 bg-[#4a3219] text-white py-2 rounded-full hover:bg-[#382613] transition shadow-md font-semibold text-sm">
+                    <!-- JIKA SUDAH LOGIN: TAUTAN KE HALAMAN FORM -->
+                    <a href="{{ route('submissions.create') }}" class="w-full flex items-center justify-center gap-2 bg-[#4a3219] text-white py-2 rounded-full hover:bg-[#382613] transition shadow-md font-semibold text-sm">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
                         </svg>
                         Upload
-                    </button>
+                    </a>
                 @else
-                    <!-- JIKA BELUM LOGIN -->
+                    <!-- JIKA BELUM LOGIN: MUNCULKAN MODAL -->
                     <button onclick="openModal()" class="w-full flex items-center justify-center gap-2 bg-[#4a3219] text-white py-2 rounded-full hover:bg-[#382613] transition shadow-md font-semibold text-sm text-center">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
