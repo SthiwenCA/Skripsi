@@ -5,61 +5,67 @@ namespace App\Http\Controllers;
 use App\Models\RoadDamageSubmission;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http; // WAJIB ADA untuk menembak API Python
 use Illuminate\Support\Facades\Storage;
 
 class RoadDamageSubmissionController extends Controller
 {
-    /**
-     * Tampilkan formulir untuk pelaporan kerusakan baru.
-     */
     public function create()
     {
-        // Mendapatkan tanggal hari ini secara real-time untuk formulir
         $todayDate = Carbon::now()->toDateString();
-        
         return view('submissions.create', compact('todayDate'));
     }
 
-    /**
-     * Simpan pelaporan kerusakan baru ke database.
-     */
     public function store(Request $request)
     {
-        // Validasi input
+        // 1. Validasi
         $validatedData = $request->validate([
-            'address' => 'required|string|max:255',
-            'damage_type' => 'required|string',
+            'latitude' => 'required|numeric',
+            'longitude' => 'required|numeric',
             'submission_date' => 'required|date',
-            // Validasi jenis gambar: png, jpg, jpeg. Ukuran maksimal 2MB.
             'image' => 'required|image|mimes:jpeg,png,jpg|max:2048', 
-            'notes' => 'nullable|string',
-        ], [
-            // Pesan kesalahan kustom (opsional)
-            'image.mimes' => 'Hanya file gambar dengan tipe png, jpg, atau jpeg yang diperbolehkan.',
-            'image.max' => 'Ukuran gambar maksimal adalah 2MB.',
         ]);
 
-        // Menyimpan gambar ke penyimpanan
-        // Kita simpan di folder 'public/submissions'
+        // 2. Simpan Gambar ke Storage
         if ($request->hasFile('image')) {
             $image = $request->file('image');
             $imageName = time() . '_' . $image->getClientOriginalName();
-            $path = $image->storeAs('public/submissions', $imageName);
-            // Jalur yang akan disimpan di database
-            $validatedData['image_path'] = 'submissions/' . $imageName; 
+            
+            // Simpan ke storage/app/public/submissions
+            $image->storeAs('submissions', $imageName, 'public');
+            $validatedData['image_path'] = 'submissions/' . $imageName;
         }
 
-        // Hapus input file dari data yang divalidasi karena kita tidak menyimpannya langsung
-        unset($validatedData['image']);
+        // Jalur absolut file untuk dikirim ke Python
+        $absolutePath = storage_path('app/public/' . $validatedData['image_path']);
 
-        // Tambahkan user_id jika user sedang login
-        if (auth()->check()) {
-            $validatedData['user_id'] = auth()->id();
+        // 3. KIRIM KE AI (PYTHON) - Pastikan server Python nyala di port 5000
+        $damageType = 'Unknown'; // Default jika AI gagal
+        
+        try {
+            $response = Http::attach(
+                'image', file_get_contents($absolutePath), $imageName
+            )->post('http://127.0.0.1:5000/predict');
+
+            if ($response->successful()) {
+                $damageType = $response->json()['damage_type'];
+            }
+        } catch (\Exception $e) {
+            // Jika server Python mati, biarkan statusnya 'Pending' atau 'Error'
+            $damageType = 'AI Server Offline';
         }
 
-        // Membuat entri baru di database
-        RoadDamageSubmission::create($validatedData);
+        // 4. Simpan ke Database
+        RoadDamageSubmission::create([
+            'user_id' => auth()->id(),
+            'latitude' => $validatedData['latitude'],
+            'longitude' => $validatedData['longitude'],
+            'submission_date' => $validatedData['submission_date'],
+            'image_path' => $validatedData['image_path'],
+            'damage_type' => $damageType, 
+            'address' => $request->input('address', 'Alamat tidak ditemukan'), // Mengambil alamat asli dari peta
+        ]);
 
-        return redirect()->route('dashboard')->with('success', 'Laporan kerusakan jalan berhasil dikirim!');
+        return redirect('/')->with('success', 'Laporan berhasil dianalisis oleh AI: ' . $damageType);
     }
 }

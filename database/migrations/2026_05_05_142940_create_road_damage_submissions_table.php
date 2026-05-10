@@ -13,11 +13,18 @@ return new class extends Migration
     {
         Schema::create('road_damage_submissions', function (Blueprint $blueprint) {
             $blueprint->id();
-            $blueprint->foreignId('user_id')->nullable()->constrained()->onDelete('set null'); // Jika ingin melacak pengirim
-            $blueprint->string('address'); // Untuk Alamat
-            $blueprint->string('damage_type'); // Untuk Tipe Kerusakan (misalnya, Cracks, Pothole, Deformation)
-            $blueprint->date('submission_date'); // Untuk Tanggal Kirim
-            $blueprint->string('image_path'); // Untuk jalur file foto
+            $blueprint->foreignId('user_id')->nullable()->constrained()->onDelete('set null'); // Melacak pengirim
+            
+            // Kolom Baru untuk Koordinat Peta
+            $blueprint->decimal('latitude', 10, 8); 
+            $blueprint->decimal('longitude', 11, 8); 
+            
+            // Kolom ini dibuat nullable (boleh kosong) karena akan diurus oleh AI dan sistem nanti
+            $blueprint->string('address')->nullable(); 
+            $blueprint->string('damage_type')->nullable(); 
+            
+            $blueprint->date('submission_date'); // Tanggal Kirim
+            $blueprint->string('image_path'); // Jalur file foto
             $blueprint->text('notes')->nullable(); // Opsional: Catatan tambahan
             $blueprint->timestamps();
         });

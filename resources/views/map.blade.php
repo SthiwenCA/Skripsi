@@ -7,24 +7,17 @@
 
     <title>Map Kerusakan Jalan</title>
 
-    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
-    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-    <!-- Memanggil Tailwind CSS & Alpine.js -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="font-sans antialiased text-gray-900">
 
-    <!-- Kontainer Full Screen -->
     <div class="relative w-screen h-screen overflow-hidden bg-gray-100">
         
-        <!-- ========================================== -->
-        <!-- NOTIFIKASI SUKSES (Muncul setelah submit form) -->
-        <!-- ========================================== -->
         @if (session('success'))
             <div id="toast-success" class="absolute top-20 left-1/2 transform -translate-x-1/2 z-[1000] bg-[#4a3219] text-white px-6 py-3 rounded-full shadow-xl font-semibold flex items-center gap-3 transition-opacity duration-500">
                 <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -33,7 +26,6 @@
                 {{ session('success') }}
             </div>
             <script>
-                // Hilangkan notifikasi setelah 3 detik
                 setTimeout(() => {
                     const toast = document.getElementById('toast-success');
                     if(toast) {
@@ -44,17 +36,14 @@
             </script>
         @endif
 
-        <!-- 1. TOMBOL BUKA SIDEBAR -->
         <button id="openSidebar" class="absolute top-4 left-4 z-[500] bg-[#4a3219] text-white p-2 rounded-md shadow-md hover:bg-[#382613] transition">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
             </svg>
         </button>
 
-        <!-- 2. TOMBOL DROPDOWN KANAN ATAS -->
         <div class="absolute top-4 right-4 z-[500]">
             @auth
-                <!-- Jika Login -->
                 <div x-data="{ open: false }" class="relative">
                     <button @click="open = !open" @click.outside="open = false" class="flex items-center gap-2 bg-white px-4 py-2 border border-gray-200 rounded-md shadow-sm font-bold text-gray-700 hover:bg-gray-50 transition">
                         <span>{{ Auth::user()->name }}</span>
@@ -71,7 +60,6 @@
                     </div>
                 </div>
             @else
-                <!-- Jika Belum Login -->
                 <div x-data="{ open: false }" class="relative">
                     <button @click="open = !open" @click.outside="open = false" class="flex items-center gap-2 bg-white px-4 py-2 border border-gray-200 rounded-md shadow-sm font-bold text-gray-700 hover:bg-gray-50 transition">
                         <span>Guest</span>
@@ -89,7 +77,6 @@
             @endauth
         </div>
 
-        <!-- 3. SIDEBAR KIRI -->
         <div id="sidebar" class="absolute top-0 left-0 h-full w-80 bg-[#eaddcf] z-[600] transform -translate-x-full transition-transform duration-300 shadow-2xl flex flex-col">
             <div class="flex justify-between items-center p-6 border-b border-[#d8c8b8] shrink-0">
                 <h2 class="text-2xl font-bold text-gray-900">Settings</h2>
@@ -103,7 +90,6 @@
             <div class="p-6 flex-1 overflow-y-auto">
                 <h4 class="font-bold text-lg mb-4 text-gray-900">Damage type</h4>
                 
-                <!-- Tombol Pilihan Jenis Kerusakan -->
                 <div class="flex flex-col gap-3 mb-6">
                     <button class="btn-type flex items-center gap-3 px-4 py-2 bg-[#a38771] text-white rounded-full hover:bg-[#4a3219] transition duration-300" data-type="crack">
                         <span class="w-3 h-3 rounded-full bg-blue-500 ring-2 ring-white"></span>
@@ -121,21 +107,14 @@
                     </button>
                 </div>
 
-                <!-- TOMBOL CLEAR & SELECT ALL BARU -->
                 <div class="flex justify-center gap-3 border-t border-[#d8c8b8] pt-6">
-                    <!-- Tombol Clear -->
                     <button id="clearFiltersBtn" class="flex items-center gap-2 px-5 py-2 bg-[#a38771] text-white rounded-full hover:bg-[#8c7460] transition shadow-sm font-bold text-sm">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M20 12H4"></path>
-                        </svg>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M20 12H4"></path></svg>
                         Clear
                     </button>
                     
-                    <!-- Tombol Select All -->
                     <button id="selectAllFiltersBtn" class="flex items-center gap-2 px-5 py-2 bg-[#a38771] text-white rounded-full hover:bg-[#8c7460] transition shadow-sm font-bold text-sm">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
-                        </svg>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
                         Select All
                     </button>
                 </div>
@@ -144,39 +123,28 @@
             <div class="p-6 shrink-0 border-t border-[#d8c8b8]">
                 <p class="font-bold text-center text-gray-900 mb-2">Upload Photos</p>
                 @auth
-                    <!-- JIKA SUDAH LOGIN: TAUTAN KE HALAMAN FORM -->
                     <a href="{{ route('submissions.create') }}" class="w-full flex items-center justify-center gap-2 bg-[#4a3219] text-white py-2 rounded-full hover:bg-[#382613] transition shadow-md font-semibold text-sm">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
-                        </svg>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                         Upload
                     </a>
                 @else
-                    <!-- JIKA BELUM LOGIN: MUNCULKAN MODAL -->
                     <button onclick="openModal()" class="w-full flex items-center justify-center gap-2 bg-[#4a3219] text-white py-2 rounded-full hover:bg-[#382613] transition shadow-md font-semibold text-sm text-center">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
-                        </svg>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>
                         Login untuk Upload
                     </button>
                 @endauth
             </div>
         </div>
 
-        <!-- 4. PETA UTAMA -->
         <div id="map" class="absolute inset-0 z-10"></div>
 
-        <!-- 5. FLOATING CARD POPUP -->
         <div id="damage-detail-popup" class="hidden absolute bottom-10 left-1/2 transform -translate-x-1/2 bg-[#e6dcd3] p-5 rounded-2xl shadow-2xl z-[550] w-[600px] max-w-[90vw] flex-row gap-6 border border-[#c1b1a3]">
-            <!-- Tombol Close (Silang) di Kanan Atas -->
             <button id="closeDetailPopupBtn" class="absolute -top-3 -right-3 bg-[#6b4e3d] text-white rounded-lg w-8 h-8 flex items-center justify-center font-bold shadow-md hover:bg-[#4a3224] transition">
                 ✕
             </button>
-            <!-- Gambar Jalan Rusak -->
             <div class="w-2/5 shrink-0">
                 <img id="detail-image" src="" alt="Foto Kerusakan" class="w-full h-36 object-cover rounded-xl shadow-sm border border-gray-300">
             </div>
-            <!-- Informasi Detail -->
             <div class="w-3/5 flex flex-col justify-center gap-4 text-gray-900 cursor-default">
                 <div class="text-[15px]">
                     <span class="font-extrabold">Address : </span>
@@ -193,9 +161,6 @@
             </div>
         </div>
 
-        <!-- ========================================== -->
-        <!-- 6. KOMPONEN MODAL NOTIFIKASI LOGIN         -->
-        <!-- ========================================== -->
         <div id="modalOverlay" class="fixed inset-0 bg-black/50 z-[1000] hidden opacity-0 transition-opacity duration-300"></div>
 
         <div id="loginModal" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#eaddcf] rounded-xl shadow-2xl z-[1001] w-[90%] max-w-md hidden opacity-0 scale-95 transition-all duration-300 overflow-hidden">
@@ -211,10 +176,22 @@
                 </a>
             </div>
         </div>
-        
     </div>
 
-    <!-- Scripts -->
+    @php
+        $dbSubmissions = \App\Models\RoadDamageSubmission::all()->map(function($sub) {
+            return [
+                'lat' => $sub->latitude,
+                'lng' => $sub->longitude,
+                'type' => strtolower($sub->damage_type ?? 'pending'),
+                'address' => $sub->address ?? 'Lokasi Pinpoint (Tidak Diketahui)',
+                'date' => \Carbon\Carbon::parse($sub->submission_date)->format('d F Y'),
+                // Mengarahkan ke storage public untuk gambar
+                'image' => asset('storage/' . $sub->image_path)
+            ];
+        });
+    @endphp
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         // Modal Functions
@@ -242,9 +219,7 @@
 
         window.addEventListener('click', function(e) {
             const overlay = document.getElementById('modalOverlay');
-            if (e.target === overlay) {
-                closeModal();
-            }
+            if (e.target === overlay) { closeModal(); }
         });
 
         // =====================================
@@ -266,26 +241,27 @@
                 detailPopup.classList.remove('flex'); 
             });
 
-            var map = L.map('map', { zoomControl: false }).setView([-6.200, 106.845], 13);
+            // MENGHILANGKAN ATTRIBUTION LEAFLET
+            var map = L.map('map', { 
+                zoomControl: false, 
+                attributionControl: false // Menyembunyikan teks Leaflet di kanan bawah
+            }).setView([-6.200, 106.845], 13);
+            
             L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap'
-            }).addTo(map);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
             var markerLayer = L.layerGroup().addTo(map);
             var clickLayer = L.layerGroup().addTo(map);
 
-            var locations = [
-                { lat: -6.200, lng: 106.845, type: 'crack', address: 'Jl. Sudirman Kav. 12, Jakarta', date: '10 Februari 2026', image: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&q=80&w=400' },
-                { lat: -6.202, lng: 106.847, type: 'pothole', address: 'Jl. Thamrin No. 8, Jakarta', date: '25 Maret 2026', image: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&q=80&w=400' },
-                { lat: -6.204, lng: 106.848, type: 'deformation', address: 'Jl. Gatot Subroto, Jakarta', date: '15 April 2026', image: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&q=80&w=400' }
-            ];
+            // MENGGUNAKAN DATA DARI DATABASE
+            var locations = @json($dbSubmissions);
 
             function getColor(type) {
                 if (type === 'crack') return 'blue';
                 if (type === 'pothole') return 'red';
                 if (type === 'deformation') return 'green';
+                return 'gray'; 
             }
 
             let activeFilters = [];
@@ -294,6 +270,7 @@
                 markerLayer.clearLayers();
 
                 locations.forEach(loc => {
+                    // Filter logic: hanya tampilkan jika ada di activeFilters
                     if (!activeFilters.includes(loc.type)) return;
 
                     let marker = L.circleMarker([loc.lat, loc.lng], {
@@ -328,6 +305,7 @@
                 });
             }
 
+            // Awal render peta (semua mati)
             loadMarkers();
 
             // KUMPULAN TOMBOL FILTER
@@ -357,39 +335,33 @@
                 });
             });
 
-            // LOGIKA TOMBOL CLEAR (Hapus Semua Pilihan)
+            // LOGIKA TOMBOL CLEAR
             clearFiltersBtn.addEventListener('click', function() {
-                activeFilters = []; // Kosongkan daftar filter
-                
-                // Ubah semua warna tombol filter menjadi mati/terang
+                activeFilters = []; 
                 filterBtns.forEach(btn => {
                     btn.classList.remove('bg-[#4a3219]');
                     btn.classList.add('bg-[#a38771]');
                 });
-
-                // Sembunyikan popup & bersihkan peta
                 detailPopup.classList.add('hidden');
                 detailPopup.classList.remove('flex');
                 clickLayer.clearLayers();
                 loadMarkers();
             });
 
-            // LOGIKA TOMBOL SELECT ALL (Pilih Semua Pilihan)
+            // LOGIKA TOMBOL SELECT ALL
             selectAllFiltersBtn.addEventListener('click', function() {
-                // Masukkan semua tipe ke dalam daftar filter
+                // Hanya menyertakan 3 jenis kerusakan utama
                 activeFilters = ['crack', 'pothole', 'deformation'];
                 
-                // Ubah semua warna tombol filter menjadi aktif/gelap
                 filterBtns.forEach(btn => {
                     btn.classList.remove('bg-[#a38771]');
                     btn.classList.add('bg-[#4a3219]');
                 });
-
-                // Bersihkan klik dan muat ulang marker di peta
                 clickLayer.clearLayers();
                 loadMarkers();
             });
 
+            // Fitur klik untuk mendapatkan koordinat baru di console/popup
             map.on('click', function(e) {
                 clickLayer.clearLayers();
                 detailPopup.classList.add('hidden');
