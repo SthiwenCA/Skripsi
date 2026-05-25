@@ -64,8 +64,9 @@ class RoadDamageSubmissionController extends Controller
             'image_path' => $validatedData['image_path'],
             'damage_type' => $damageType, 
             'address' => $request->input('address', 'Alamat tidak ditemukan'), // Mengambil alamat asli dari peta
+            'status' => 'pending', // <--- TAMBAHAN UNTUK SISTEM APPROVAL
         ]);
 
-        return redirect('/')->with('success', 'Laporan berhasil dianalisis oleh AI: ' . $damageType);
+        return redirect('/')->with('success', 'Laporan Berhasil : Menunggu Verifikasi Admin');
     }
 }

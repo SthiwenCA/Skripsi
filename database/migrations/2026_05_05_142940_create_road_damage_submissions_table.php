@@ -26,6 +26,10 @@ return new class extends Migration
             $blueprint->date('submission_date'); // Tanggal Kirim
             $blueprint->string('image_path'); // Jalur file foto
             $blueprint->text('notes')->nullable(); // Opsional: Catatan tambahan
+            
+            // --- TAMBAHAN BARU: Kolom Status untuk Sistem Approval ---
+            $blueprint->string('status')->default('pending'); 
+            
             $blueprint->timestamps();
         });
     }

@@ -19,6 +19,7 @@ class RoadDamageSubmission extends Model
         'submission_date',
         'image_path',
         'notes',          // Jika kamu menambahkan kolom notes sebelumnya
+        'status',         // <--- TAMBAHAN BARU: Diizinkan agar controller bisa menyimpan status pending/approved
     ];
 
     // Relasi ke model User

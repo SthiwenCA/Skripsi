@@ -16,6 +16,66 @@
 </head>
 <body class="font-sans antialiased text-gray-900">
 
+    @php
+        // ==========================================
+        // LOGIKA PENGAMBILAN DATA & NOTIFIKASI
+        // ==========================================
+        $isAdmin = Auth::check() && Auth::user()->email === 'admin@gmail.com';
+        
+        $query = \App\Models\RoadDamageSubmission::query();
+        if (!$isAdmin) {
+            $query->where('status', 'approved');
+        }
+
+        $dbSubmissions = $query->get()->map(function($sub) {
+            return [
+                'id' => $sub->id,
+                'lat' => $sub->latitude,
+                'lng' => $sub->longitude,
+                'type' => strtolower($sub->damage_type ?? 'unknown'),
+                'status' => strtolower($sub->status ?? 'pending'),
+                'address' => $sub->address ?? 'Lokasi Pinpoint (Tidak Diketahui)',
+                'date' => \Carbon\Carbon::parse($sub->submission_date)->format('d F Y'),
+                'image' => asset('storage/' . $sub->image_path)
+            ];
+        });
+
+        // LOGIKA LONCENG NOTIFIKASI
+        $notifCount = 0;
+        $notifications = [];
+
+        if (Auth::check()) {
+            if ($isAdmin) {
+                // Notifikasi Admin: Laporan Pending Baru
+                $pendingData = \App\Models\RoadDamageSubmission::where('status', 'pending')->latest()->take(5)->get();
+                $notifCount = \App\Models\RoadDamageSubmission::where('status', 'pending')->count();
+                
+                foreach($pendingData as $item) {
+                    $notifications[] = [
+                        'title' => 'Laporan Baru Masuk 🚨',
+                        'desc' => 'Kerusakan tipe ' . strtoupper($item->damage_type) . ' menunggu verifikasi.',
+                        'time' => \Carbon\Carbon::parse($item->created_at)->diffForHumans()
+                    ];
+                }
+            } else {
+                // Notifikasi User: Laporan Disetujui
+                $approvedData = \App\Models\RoadDamageSubmission::where('user_id', Auth::id())
+                                    ->where('status', 'approved')
+                                    ->orderBy('updated_at', 'desc')
+                                    ->take(5)->get();
+                $notifCount = $approvedData->count(); 
+                
+                foreach($approvedData as $item) {
+                    $notifications[] = [
+                        'title' => 'Laporan Disetujui! 🎉',
+                        'desc' => 'Laporan ' . strtoupper($item->damage_type) . ' Anda telah tayang di peta.',
+                        'time' => \Carbon\Carbon::parse($item->updated_at)->diffForHumans()
+                    ];
+                }
+            }
+        }
+    @endphp
+
     <div class="relative w-screen h-screen overflow-hidden bg-gray-100">
         
         @if (session('success'))
@@ -42,32 +102,75 @@
             </svg>
         </button>
 
-        <div class="absolute top-4 right-4 z-[500]">
+        <div class="absolute top-4 right-4 z-[500] flex items-center gap-3">
+            
             @auth
+                <div x-data="{ openNotif: false, hideBadge: false }" class="relative">
+                    
+                    <button @click="openNotif = !openNotif; hideBadge = true" @click.outside="openNotif = false" class="relative p-2 bg-white rounded-full shadow-sm border border-gray-200 hover:bg-gray-50 transition focus:outline-none">
+                        <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                        </svg>
+                        
+                        @if($notifCount > 0)
+                            <span x-show="!hideBadge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-[10px] font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-red-600 rounded-full">
+                                {{ $notifCount }}
+                            </span>
+                        @endif
+                    </button>
+
+                    <div x-cloak x-show="openNotif" x-transition class="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl py-2 border border-gray-100 overflow-hidden z-[1000]">
+                        <div class="px-4 py-3 border-b border-gray-100 font-extrabold text-gray-800 flex justify-between items-center bg-gray-50">
+                            <span>Notifikasi</span>
+                        </div>
+                        <div class="max-h-72 overflow-y-auto">
+                            @forelse($notifications as $notif)
+                                <div class="px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition cursor-default">
+                                    <p class="text-sm font-bold text-gray-900">{{ $notif['title'] }}</p>
+                                    <p class="text-xs text-gray-600 mt-1 leading-snug">{{ $notif['desc'] }}</p>
+                                    <p class="text-[10px] text-gray-400 mt-2 font-semibold">{{ $notif['time'] }}</p>
+                                </div>
+                            @empty
+                                <div class="px-4 py-8 text-center text-sm text-gray-500 font-medium">
+                                    Belum ada notifikasi baru.
+                                </div>
+                            @endforelse
+                        </div>
+                    </div>
+                </div>
+
                 <div x-data="{ open: false }" class="relative">
-                    <button @click="open = !open" @click.outside="open = false" class="flex items-center gap-2 bg-white px-4 py-2 border border-gray-200 rounded-md shadow-sm font-bold text-gray-700 hover:bg-gray-50 transition">
-                        <span>{{ Auth::user()->name }}</span>
+                    <button @click="open = !open" @click.outside="open = false" class="flex items-center gap-2 bg-white px-4 py-2 border border-gray-200 rounded-full shadow-sm font-bold text-gray-700 hover:bg-gray-50 transition focus:outline-none">
+                        <span>{{ Auth::user()->email === 'admin@gmail.com' ? 'Administrator' : Auth::user()->name }}</span>
                         <svg class="w-4 h-4 transition-transform duration-200" :class="{'rotate-180': open}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                         </svg>
                     </button>
-                    <div x-cloak x-show="open" x-transition class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5">
+                    <div x-cloak x-show="open" x-transition class="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg py-1 border border-gray-100 overflow-hidden">
+                        
+                        @if(Auth::user()->email === 'admin@gmail.com')
+                            <a href="{{ route('admin.dashboard') }}" class="block px-4 py-2 text-sm text-gray-700 font-bold hover:bg-gray-100 border-b border-gray-100">
+                                📋 Tabel Manajemen
+                            </a>
+                        @endif
+
                         <a href="{{ route('profile.edit') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</a>
+                        <div class="border-t border-gray-100 my-1"></div>
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
-                            <button type="submit" class="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Log Out</button>
+                            <button type="submit" class="w-full text-left block px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50">Log Out</button>
                         </form>
                     </div>
                 </div>
             @else
                 <div x-data="{ open: false }" class="relative">
-                    <button @click="open = !open" @click.outside="open = false" class="flex items-center gap-2 bg-white px-4 py-2 border border-gray-200 rounded-md shadow-sm font-bold text-gray-700 hover:bg-gray-50 transition">
+                    <button @click="open = !open" @click.outside="open = false" class="flex items-center gap-2 bg-white px-4 py-2 border border-gray-200 rounded-full shadow-sm font-bold text-gray-700 hover:bg-gray-50 transition focus:outline-none">
                         <span>Guest</span>
                         <svg class="w-4 h-4 transition-transform duration-200" :class="{'rotate-180': open}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                         </svg>
                     </button>
-                    <div x-cloak x-show="open" x-transition class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5">
+                    <div x-cloak x-show="open" x-transition class="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg py-1 border border-gray-100 overflow-hidden">
                         <a href="{{ route('login') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Log in</a>
                         @if (Route::has('register'))
                             <a href="{{ route('register') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Register</a>
@@ -105,6 +208,13 @@
                         <span class="w-3 h-3 rounded-full bg-green-500 ring-2 ring-white"></span>
                         <span class="font-semibold text-sm">Deformation</span>
                     </button>
+
+                    @if(Auth::check() && Auth::user()->email === 'admin@gmail.com')
+                    <button class="btn-type flex items-center gap-3 px-4 py-2 bg-[#a38771] text-white rounded-full hover:bg-[#4a3219] transition duration-300" data-type="pending">
+                        <span class="w-3 h-3 rounded-full bg-gray-500 ring-2 ring-white"></span>
+                        <span class="font-semibold text-sm text-gray-200">Pending (Admin)</span>
+                    </button>
+                    @endif
                 </div>
 
                 <div class="flex justify-center gap-3 border-t border-[#d8c8b8] pt-6">
@@ -138,26 +248,49 @@
 
         <div id="map" class="absolute inset-0 z-10"></div>
 
-        <div id="damage-detail-popup" class="hidden absolute bottom-10 left-1/2 transform -translate-x-1/2 bg-[#e6dcd3] p-5 rounded-2xl shadow-2xl z-[550] w-[600px] max-w-[90vw] flex-row gap-6 border border-[#c1b1a3]">
+        <div id="damage-detail-popup" class="hidden absolute bottom-10 left-1/2 transform -translate-x-1/2 bg-[#eaddcf] p-6 rounded-2xl shadow-2xl z-[550] w-[700px] max-w-[90vw] flex-row gap-6 border border-[#c1b1a3]">
             <button id="closeDetailPopupBtn" class="absolute -top-3 -right-3 bg-[#6b4e3d] text-white rounded-lg w-8 h-8 flex items-center justify-center font-bold shadow-md hover:bg-[#4a3224] transition">
                 ✕
             </button>
-            <div class="w-2/5 shrink-0">
-                <img id="detail-image" src="" alt="Foto Kerusakan" class="w-full h-36 object-cover rounded-xl shadow-sm border border-gray-300">
+            <div class="w-2/5 shrink-0 flex items-center">
+                <img id="detail-image" src="" alt="Foto Kerusakan" class="w-full h-40 object-cover rounded-xl shadow-sm border border-gray-300">
             </div>
-            <div class="w-3/5 flex flex-col justify-center gap-4 text-gray-900 cursor-default">
-                <div class="text-[15px]">
-                    <span class="font-extrabold">Address : </span>
-                    <span id="detail-address" class="font-medium"></span>
+            <div class="w-3/5 flex flex-col justify-between gap-4 text-gray-900 cursor-default">
+                
+                <div class="flex flex-col gap-2">
+                    <div class="text-[15px] leading-snug">
+                        <span class="font-extrabold">Address : </span>
+                        <span id="detail-address" class="font-medium"></span>
+                    </div>
+                    <div class="text-[15px]">
+                        <span class="font-extrabold">Damage Type : </span>
+                        <span id="detail-type" class="font-medium capitalize"></span>
+                    </div>
+                    <div class="text-[15px]">
+                        <span class="font-extrabold">Submitted Date : </span>
+                        <span id="detail-date" class="font-medium"></span>
+                    </div>
                 </div>
-                <div class="text-[15px]">
-                    <span class="font-extrabold">Damage Type : </span>
-                    <span id="detail-type" class="font-medium capitalize"></span>
+
+                @if(Auth::check() && Auth::user()->email === 'admin@gmail.com')
+                <div id="admin-action-buttons" class="hidden flex gap-3 mt-2">
+                    <form id="approve-form" method="POST" action="" class="flex-1">
+                        @csrf
+                        @method('PATCH')
+                        <button type="submit" class="w-full bg-[#1e7b2e] text-white py-2 rounded-lg font-bold shadow hover:bg-green-700 transition text-sm">
+                            Approve
+                        </button>
+                    </form>
+
+                    <form id="delete-form" method="POST" action="" class="flex-1" onsubmit="return confirm('Yakin ingin menghapus laporan ini?');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="w-full bg-[#cc0000] text-white py-2 rounded-lg font-bold shadow hover:bg-red-700 transition text-sm">
+                            Delete
+                        </button>
+                    </form>
                 </div>
-                <div class="text-[15px]">
-                    <span class="font-extrabold">Submitted Date : </span>
-                    <span id="detail-date" class="font-medium"></span>
-                </div>
+                @endif
             </div>
         </div>
 
@@ -177,20 +310,6 @@
             </div>
         </div>
     </div>
-
-    @php
-        $dbSubmissions = \App\Models\RoadDamageSubmission::all()->map(function($sub) {
-            return [
-                'lat' => $sub->latitude,
-                'lng' => $sub->longitude,
-                'type' => strtolower($sub->damage_type ?? 'pending'),
-                'address' => $sub->address ?? 'Lokasi Pinpoint (Tidak Diketahui)',
-                'date' => \Carbon\Carbon::parse($sub->submission_date)->format('d F Y'),
-                // Mengarahkan ke storage public untuk gambar
-                'image' => asset('storage/' . $sub->image_path)
-            ];
-        });
-    @endphp
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
@@ -241,23 +360,23 @@
                 detailPopup.classList.remove('flex'); 
             });
 
-            // MENGHILANGKAN ATTRIBUTION LEAFLET
             var map = L.map('map', { 
                 zoomControl: false, 
-                attributionControl: false // Menyembunyikan teks Leaflet di kanan bawah
+                attributionControl: false 
             }).setView([-6.200, 106.845], 13);
             
             L.control.zoom({ position: 'bottomright' }).addTo(map);
-
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
             var markerLayer = L.layerGroup().addTo(map);
             var clickLayer = L.layerGroup().addTo(map);
 
-            // MENGGUNAKAN DATA DARI DATABASE
+            var isAdmin = @json($isAdmin);
             var locations = @json($dbSubmissions);
+            var baseUrl = "{{ url('/admin/report') }}"; 
 
-            function getColor(type) {
+            function getColor(type, status) {
+                if (status === 'pending') return 'gray'; 
                 if (type === 'crack') return 'blue';
                 if (type === 'pothole') return 'red';
                 if (type === 'deformation') return 'green';
@@ -270,11 +389,12 @@
                 markerLayer.clearLayers();
 
                 locations.forEach(loc => {
-                    // Filter logic: hanya tampilkan jika ada di activeFilters
-                    if (!activeFilters.includes(loc.type)) return;
+                    let filterCategory = (loc.status === 'pending') ? 'pending' : loc.type;
+
+                    if (!activeFilters.includes(filterCategory)) return;
 
                     let marker = L.circleMarker([loc.lat, loc.lng], {
-                        color: getColor(loc.type),
+                        color: getColor(loc.type, loc.status),
                         radius: 8,       
                         fillOpacity: 0.8,
                         weight: 2        
@@ -293,10 +413,34 @@
 
                     marker.on('click', function(e) {
                         L.DomEvent.stopPropagation(e);
+                        
                         document.getElementById('detail-address').innerText = loc.address;
                         document.getElementById('detail-date').innerText = loc.date;
-                        document.getElementById('detail-type').innerText = loc.type;
+                        
+                        let displayType = loc.type;
+                        if (loc.status === 'pending') {
+                            displayType += ' (Pending Verifikasi)';
+                        }
+                        document.getElementById('detail-type').innerText = displayType;
                         document.getElementById('detail-image').src = loc.image;
+
+                        if (isAdmin) {
+                            let adminActions = document.getElementById('admin-action-buttons');
+                            if (adminActions) {
+                                document.getElementById('approve-form').action = baseUrl + '/' + loc.id + '/approve';
+                                document.getElementById('delete-form').action = baseUrl + '/' + loc.id;
+
+                                if (loc.status === 'approved') {
+                                    document.getElementById('approve-form').classList.add('hidden');
+                                } else {
+                                    document.getElementById('approve-form').classList.remove('hidden');
+                                }
+                                
+                                adminActions.classList.remove('hidden');
+                                adminActions.classList.add('flex');
+                            }
+                        }
+
                         detailPopup.classList.remove('hidden');
                         detailPopup.classList.add('flex');
                     });
@@ -305,15 +449,12 @@
                 });
             }
 
-            // Awal render peta (semua mati)
             loadMarkers();
 
-            // KUMPULAN TOMBOL FILTER
             const filterBtns = document.querySelectorAll('.btn-type');
             const clearFiltersBtn = document.getElementById('clearFiltersBtn');
             const selectAllFiltersBtn = document.getElementById('selectAllFiltersBtn');
 
-            // Logika Klik per Tombol Tipe Kerusakan
             filterBtns.forEach(btn => {
                 btn.addEventListener('click', function() {
                     let type = this.dataset.type;
@@ -335,7 +476,6 @@
                 });
             });
 
-            // LOGIKA TOMBOL CLEAR
             clearFiltersBtn.addEventListener('click', function() {
                 activeFilters = []; 
                 filterBtns.forEach(btn => {
@@ -348,10 +488,11 @@
                 loadMarkers();
             });
 
-            // LOGIKA TOMBOL SELECT ALL
             selectAllFiltersBtn.addEventListener('click', function() {
-                // Hanya menyertakan 3 jenis kerusakan utama
                 activeFilters = ['crack', 'pothole', 'deformation'];
+                if (isAdmin) {
+                    activeFilters.push('pending');
+                }
                 
                 filterBtns.forEach(btn => {
                     btn.classList.remove('bg-[#a38771]');
@@ -361,7 +502,6 @@
                 loadMarkers();
             });
 
-            // Fitur klik untuk mendapatkan koordinat baru di console/popup
             map.on('click', function(e) {
                 clickLayer.clearLayers();
                 detailPopup.classList.add('hidden');

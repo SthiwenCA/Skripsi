@@ -28,7 +28,9 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended('/');
+        // UBAH DI SINI: Menghapus 'intended' agar sistem selalu memaksa
+        // lemparan ke Peta Utama (http://127.0.0.1:8000/) secara mutlak.
+        return redirect('/');
     }
 
     /**

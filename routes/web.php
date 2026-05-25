@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RoadDamageSubmissionController;
+use App\Http\Controllers\AdminController; // Ditambahkan untuk memanggil AdminController
 use Illuminate\Support\Facades\Route;
 
 // =========================================================
@@ -39,6 +40,15 @@ Route::middleware('auth')->group(function () {
     // Rute untuk menampilkan halaman form upload dan memproses data yang disubmit
     Route::get('/submissions/create', [RoadDamageSubmissionController::class, 'create'])->name('submissions.create');
     Route::post('/submissions', [RoadDamageSubmissionController::class, 'store'])->name('submissions.store');
+});
+
+// =========================================================
+// 4. FITUR KHUSUS ADMIN (TABEL LIST VERIFIKASI)
+// =========================================================
+Route::middleware('auth')->group(function () {
+    Route::get('/admin/dashboard', [AdminController::class, 'index'])->name('admin.dashboard');
+    Route::delete('/admin/report/{id}', [AdminController::class, 'destroy'])->name('admin.report.destroy');
+    Route::patch('/admin/report/{id}/approve', [AdminController::class, 'approve'])->name('admin.report.approve');
 });
 
 // Memanggil rute-rute otentikasi bawaan Breeze (Login, Register, Logout, dll)
