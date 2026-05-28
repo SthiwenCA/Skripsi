@@ -16,6 +16,7 @@ class RoadDamageSubmission extends Model
         'longitude',      // Kolom baru untuk koordinat garis bujur
         'address',        // Tetap dibiarkan fillable untuk diisi default/AI nantinya
         'damage_type',    // Tetap dibiarkan fillable untuk diisi default/AI nantinya
+        'ai_detected_type',
         'submission_date',
         'image_path',
         'notes',          // Jika kamu menambahkan kolom notes sebelumnya

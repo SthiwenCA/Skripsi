@@ -24,17 +24,29 @@ class AdminController extends Controller
         return view('admin.dashboard', compact('pendingReports', 'allReports'));
     }
 
-    // Fitur Setujui Laporan (Approve)
-    public function approve($id)
+    // =========================================================================
+    // FITUR SETUJUI LAPORAN (APPROVE) - UPDATE TANGKAP DAMAGE TYPE
+    // =========================================================================
+    public function approve(Request $request, $id)
     {
         if (auth()->guest() || auth()->user()->email !== 'admin@gmail.com') {
             abort(403);
         }
 
         $report = RoadDamageSubmission::findOrFail($id);
-        $report->update(['status' => 'approved']);
+        
+        // 1. Update status laporan menjadi disetujui
+        $report->status = 'approved';
 
-        return redirect()->back()->with('success', 'Laporan berhasil disetujui dan langsung tayang di peta publik!');
+        // 2. Jika Admin mengubah tipe kerusakan di dropdown, tangkap dan update datanya
+        if ($request->has('damage_type') && !empty($request->damage_type)) {
+            $report->damage_type = $request->damage_type;
+        }
+
+        // 3. Simpan perubahan ke database
+        $report->save();
+
+        return redirect()->back()->with('success', 'Laporan berhasil disetujui dan tipe kerusakan telah diupdate!');
     }
 
     // Fitur Delete Laporan (Delete Disaster)

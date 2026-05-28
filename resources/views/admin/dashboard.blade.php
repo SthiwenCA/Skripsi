@@ -41,14 +41,27 @@
                 <div x-show="currentTab === 'verifikasi'" x-cloak class="bg-gray-400 p-6">
                     <div class="flex flex-col gap-4">
                         @forelse($pendingReports as $report)
-                            <div class="flex flex-col md:flex-row items-center justify-between bg-gray-200 p-4 rounded-xl shadow-sm border border-gray-300">
+                            <div x-data="{ selectedType: '{{ $report->damage_type }}' }" class="flex flex-col md:flex-row items-center justify-between bg-gray-200 p-4 rounded-xl shadow-sm border border-gray-300">
                                 
                                 <div class="flex flex-col md:flex-row items-center md:items-start gap-6 w-full md:w-3/4">
                                     <img src="{{ asset('storage/' . $report->image_path) }}" class="w-40 h-28 object-cover rounded-lg shadow-sm border border-gray-300 shrink-0" alt="Kerusakan">
                                     
-                                    <div class="flex flex-col justify-center gap-2 text-gray-800 text-[15px] mt-2 md:mt-0 h-full py-1">
+                                    <div class="flex flex-col justify-center gap-2 text-gray-800 text-[15px] mt-2 md:mt-0 h-full py-1 w-full">
                                         <div class="leading-snug"><span class="font-bold">Address :</span> {{ $report->address }}</div>
-                                        <div><span class="font-bold">Damage Type :</span> <span class="capitalize">{{ $report->damage_type }}</span></div>
+                                        
+                                        <div>
+                                            <span class="font-bold">Detected Damage Type :</span> 
+                                            <span class="capitalize">{{ $report->ai_detected_type ?? $report->damage_type }}</span>
+                                        </div>
+
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <span class="font-bold">Verifikasi Damage Type :</span> 
+                                            <select x-model="selectedType" class="font-bold capitalize border-2 border-[#a38771] rounded-lg pl-3 pr-10 py-1 bg-white text-sm text-[#4a3219] focus:ring-2 focus:ring-[#4a3219] focus:border-[#4a3219] cursor-pointer shadow-sm min-w-[140px] outline-none transition-all">
+                                                <option value="crack">Crack</option>
+                                                <option value="pothole">Pothole</option>
+                                            </select>
+                                        </div>
+
                                         <div><span class="font-bold">Submitted Date :</span> {{ \Carbon\Carbon::parse($report->submission_date)->format('d M Y') }}</div>
                                     </div>
                                 </div>
@@ -57,6 +70,8 @@
                                     <form action="{{ route('admin.report.approve', $report->id) }}" method="POST" class="w-full">
                                         @csrf
                                         @method('PATCH')
+                                        <input type="hidden" name="damage_type" :value="selectedType">
+                                        
                                         <button type="submit" class="w-full bg-[#1e7b2e] hover:bg-green-700 text-white font-bold py-2 rounded-lg text-sm shadow transition">
                                             Verifikasi
                                         </button>
@@ -87,9 +102,15 @@
                                 <div class="flex flex-col md:flex-row items-center md:items-start gap-6 w-full md:w-3/4">
                                     <img src="{{ asset('storage/' . $report->image_path) }}" class="w-40 h-28 object-cover rounded-lg shadow-sm border border-gray-300 shrink-0" alt="Kerusakan">
                                     
-                                    <div class="flex flex-col justify-center gap-2 text-gray-800 text-[15px] mt-2 md:mt-0 h-full py-1">
+                                    <div class="flex flex-col justify-center gap-2 text-gray-800 text-[15px] mt-2 md:mt-0 h-full py-1 w-full">
                                         <div class="leading-snug"><span class="font-bold">Address :</span> {{ $report->address }}</div>
-                                        <div class="flex items-center gap-2">
+                                        
+                                        <div>
+                                            <span class="font-bold">Detected Damage Type :</span> 
+                                            <span class="capitalize">{{ $report->ai_detected_type ?? $report->damage_type }}</span>
+                                        </div>
+
+                                        <div class="flex flex-wrap items-center gap-2">
                                             <span class="font-bold">Damage Type :</span> 
                                             <span class="capitalize">{{ $report->damage_type }}</span>
                                             @if($report->status === 'pending')

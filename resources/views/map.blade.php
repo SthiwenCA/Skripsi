@@ -17,9 +17,6 @@
 <body class="font-sans antialiased text-gray-900">
 
     @php
-        // =========================================================================
-        // LOGIKA PENGAMBILAN DATA & NOTIFIKASI
-        // =========================================================================
         $isAdmin = Auth::check() && Auth::user()->email === 'admin@gmail.com';
         
         $query = \App\Models\RoadDamageSubmission::query();
@@ -33,6 +30,7 @@
                 'lat' => $sub->latitude,
                 'lng' => $sub->longitude,
                 'type' => strtolower($sub->damage_type ?? 'unknown'),
+                'ai_type' => strtolower($sub->ai_detected_type ?? $sub->damage_type ?? 'unknown'), 
                 'status' => strtolower($sub->status ?? 'pending'),
                 'address' => $sub->address ?? 'Lokasi Pinpoint (Tidak Diketahui)',
                 'date' => \Carbon\Carbon::parse($sub->submission_date)->format('d F Y'),
@@ -40,13 +38,11 @@
             ];
         });
 
-        // LOGIKA LONCENG NOTIFIKASI
         $notifCount = 0;
         $notifications = [];
 
         if (Auth::check()) {
             if ($isAdmin) {
-                // Notifikasi Admin: Laporan Pending Baru
                 $pendingData = \App\Models\RoadDamageSubmission::where('status', 'pending')->latest()->take(5)->get();
                 $notifCount = \App\Models\RoadDamageSubmission::where('status', 'pending')->count();
                 
@@ -58,7 +54,6 @@
                     ];
                 }
             } else {
-                // Notifikasi User: Laporan Disetujui
                 $approvedData = \App\Models\RoadDamageSubmission::where('user_id', Auth::id())
                                     ->where('status', 'approved')
                                     ->orderBy('updated_at', 'desc')
@@ -103,10 +98,8 @@
         </button>
 
         <div class="absolute top-4 right-4 z-[500] flex items-center gap-3">
-            
             @auth
                 <div x-data="{ openNotif: false, hideBadge: false }" class="relative">
-                    
                     <button @click="openNotif = !openNotif; hideBadge = true" @click.outside="openNotif = false" class="relative p-2 bg-white rounded-full shadow-sm border border-gray-200 hover:bg-gray-50 transition focus:outline-none">
                         <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
@@ -147,13 +140,11 @@
                         </svg>
                     </button>
                     <div x-cloak x-show="open" x-transition class="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg py-1 border border-gray-100 overflow-hidden">
-                        
                         @if(Auth::user()->email === 'admin@gmail.com')
                             <a href="{{ route('admin.dashboard') }}" class="block px-4 py-2 text-sm text-gray-700 font-bold hover:bg-gray-100 border-b border-gray-100">
                                 📋 Tabel Manajemen
                             </a>
                         @endif
-
                         <a href="{{ route('profile.edit') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</a>
                         <div class="border-t border-gray-100 my-1"></div>
                         <form method="POST" action="{{ route('logout') }}">
@@ -192,7 +183,6 @@
 
             <div class="p-6 flex-1 overflow-y-auto">
                 <h4 class="font-bold text-lg mb-4 text-gray-900">Damage type</h4>
-                
                 <div class="flex flex-col gap-3 mb-6">
                     <button class="btn-type flex items-center gap-3 px-4 py-2 bg-[#a38771] text-white rounded-full hover:bg-[#4a3219] transition duration-300" data-type="crack">
                         <span class="w-3 h-3 rounded-full bg-blue-500 ring-2 ring-white"></span>
@@ -203,7 +193,7 @@
                         <span class="w-3 h-3 rounded-full bg-red-500 ring-2 ring-white"></span>
                         <span class="font-semibold text-sm">Pothole</span>
                     </button>
-                    
+
                     @if(Auth::check() && Auth::user()->email === 'admin@gmail.com')
                     <button class="btn-type flex items-center gap-3 px-4 py-2 bg-[#a38771] text-white rounded-full hover:bg-[#4a3219] transition duration-300" data-type="pending">
                         <span class="w-3 h-3 rounded-full bg-gray-500 ring-2 ring-white"></span>
@@ -217,7 +207,6 @@
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M20 12H4"></path></svg>
                         Clear
                     </button>
-                    
                     <button id="selectAllFiltersBtn" class="flex items-center gap-2 px-5 py-2 bg-[#a38771] text-white rounded-full hover:bg-[#8c7460] transition shadow-sm font-bold text-sm">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
                         Select All
@@ -252,15 +241,30 @@
             </div>
             <div class="w-3/5 flex flex-col justify-between gap-4 text-gray-900 cursor-default">
                 
-                <div class="flex flex-col gap-2">
+                <div class="flex flex-col gap-3">
                     <div class="text-[15px] leading-snug">
                         <span class="font-extrabold">Address : </span>
                         <span id="detail-address" class="font-medium"></span>
                     </div>
-                    <div class="text-[15px]">
-                        <span class="font-extrabold">Damage Type : </span>
-                        <span id="detail-type" class="font-medium capitalize"></span>
+                    
+                    <div id="row-detected-type" class="text-[15px] hidden">
+                        <span class="font-extrabold">Detected Damage Type : </span>
+                        <span id="detail-detected-type" class="font-medium capitalize"></span>
                     </div>
+
+                    <div class="text-[15px] flex items-center gap-2">
+                        <span class="font-extrabold" id="label-verifikasi">Damage Type : </span>
+                        
+                        <span id="detail-type" class="font-medium capitalize"></span>
+                        
+                        @if(Auth::check() && Auth::user()->email === 'admin@gmail.com')
+                            <select id="edit-damage-type" class="hidden font-bold capitalize border-2 border-[#a38771] rounded-lg pl-3 pr-10 py-1.5 bg-white text-sm text-[#4a3219] focus:ring-2 focus:ring-[#4a3219] focus:border-[#4a3219] cursor-pointer shadow-md min-w-[140px] outline-none transition-all">
+                                <option value="crack">Crack</option>
+                                <option value="pothole">Pothole</option>
+                            </select>
+                        @endif
+                    </div>
+                    
                     <div class="text-[15px]">
                         <span class="font-extrabold">Submitted Date : </span>
                         <span id="detail-date" class="font-medium"></span>
@@ -272,6 +276,9 @@
                     <form id="approve-form" method="POST" action="" class="flex-1">
                         @csrf
                         @method('PATCH')
+                        
+                        <input type="hidden" name="damage_type" id="approve-damage-type-input" value="">
+
                         <button type="submit" class="w-full bg-[#1e7b2e] text-white py-2 rounded-lg font-bold shadow hover:bg-green-700 transition text-sm">
                             Approve
                         </button>
@@ -308,9 +315,6 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // =========================================================================
-        // KONTROL INTERFACE MODAL & SIDEBAR
-        // =========================================================================
         function openModal() {
             const overlay = document.getElementById('modalOverlay');
             const modal = document.getElementById('loginModal');
@@ -354,9 +358,6 @@
                 detailPopup.classList.remove('flex'); 
             });
 
-            // =========================================================================
-            // INISIALISASI UTAMA MAP LEAFLET
-            // =========================================================================
             var map = L.map('map', { 
                 zoomControl: false, 
                 attributionControl: false 
@@ -372,23 +373,15 @@
             var locations = @json($dbSubmissions);
             var baseUrl = "{{ url('/admin/report') }}"; 
 
-            // =========================================================================
-            // FUNGSI PEWARNAAN BERDASARKAN TIPE KERUSAKAN
-            // =========================================================================
             function getColor(type, status) {
                 if (status === 'pending') return 'gray'; 
                 if (type === 'crack') return 'blue';
                 if (type === 'pothole') return 'red';
-                // Warna green untuk deformation dibiarkan jika sewaktu-waktu database masih punya datanya
-                if (type === 'deformation') return 'green';
                 return 'gray'; 
             }
 
             let activeFilters = [];
 
-            // =========================================================================
-            // RENDERING & INTERAKSI TITIK KERUSAKAN (MARKER)
-            // =========================================================================
             function loadMarkers() {
                 markerLayer.clearLayers();
 
@@ -420,13 +413,16 @@
                         
                         document.getElementById('detail-address').innerText = loc.address;
                         document.getElementById('detail-date').innerText = loc.date;
-                        
-                        let displayType = loc.type;
-                        if (loc.status === 'pending') {
-                            displayType += ' (Pending Verifikasi)';
-                        }
-                        document.getElementById('detail-type').innerText = displayType;
                         document.getElementById('detail-image').src = loc.image;
+                        
+                        // Set nilai text Detected Damage Type (meskipun mungkin nanti di-hidden)
+                        document.getElementById('detail-detected-type').innerText = loc.ai_type;
+                        
+                        let typeTextSpan = document.getElementById('detail-type');
+                        let editDropdown = document.getElementById('edit-damage-type');
+                        let approveInput = document.getElementById('approve-damage-type-input');
+                        let labelVerifikasi = document.getElementById('label-verifikasi');
+                        let rowDetectedType = document.getElementById('row-detected-type'); // Tarik elemen baris Detected
 
                         if (isAdmin) {
                             let adminActions = document.getElementById('admin-action-buttons');
@@ -435,14 +431,49 @@
                                 document.getElementById('delete-form').action = baseUrl + '/' + loc.id;
 
                                 if (loc.status === 'approved') {
+                                    // JIKA SUDAH APPROVED
                                     document.getElementById('approve-form').classList.add('hidden');
+                                    if(editDropdown) editDropdown.classList.add('hidden');
+                                    
+                                    rowDetectedType.classList.add('hidden'); // Sembunyikan baris Detected
+                                    labelVerifikasi.innerText = 'Damage Type : ';
+                                    typeTextSpan.innerText = loc.type;
+                                    typeTextSpan.classList.remove('hidden');
                                 } else {
+                                    // JIKA MASIH PENDING
                                     document.getElementById('approve-form').classList.remove('hidden');
+                                    typeTextSpan.classList.add('hidden'); 
+                                    
+                                    rowDetectedType.classList.remove('hidden'); // Munculkan baris Detected
+                                    labelVerifikasi.innerText = 'Verifikasi Damage Type : ';
+                                    
+                                    if(editDropdown) {
+                                        editDropdown.classList.remove('hidden');
+                                        editDropdown.value = loc.type;
+                                        
+                                        if(approveInput) approveInput.value = loc.type;
+                                        
+                                        editDropdown.onchange = function() {
+                                            if(approveInput) approveInput.value = this.value;
+                                        };
+                                    }
                                 }
                                 
                                 adminActions.classList.remove('hidden');
                                 adminActions.classList.add('flex');
                             }
+                        } else {
+                            // UNTUK GUEST ATAU USER BIASA
+                            let displayType = loc.type;
+                            if (loc.status === 'pending') {
+                                displayType += ' (Pending)';
+                            }
+                            
+                            rowDetectedType.classList.add('hidden'); // Selalu sembunyikan baris Detected untuk user biasa
+                            labelVerifikasi.innerText = 'Damage Type : ';
+                            typeTextSpan.innerText = displayType;
+                            typeTextSpan.classList.remove('hidden');
+                            if(editDropdown) editDropdown.classList.add('hidden');
                         }
 
                         detailPopup.classList.remove('hidden');
@@ -455,9 +486,6 @@
 
             loadMarkers();
 
-            // =========================================================================
-            // MANAJEMEN SISTEM FILTER SIDEBAR
-            // =========================================================================
             const filterBtns = document.querySelectorAll('.btn-type');
             const clearFiltersBtn = document.getElementById('clearFiltersBtn');
             const selectAllFiltersBtn = document.getElementById('selectAllFiltersBtn');
@@ -495,10 +523,6 @@
                 loadMarkers();
             });
 
-            // =========================================================================
-            // 2. UPDATE LOGIKA SELECT ALL FILTER
-            // =========================================================================
-            // 'deformation' telah dihapus dari array default yang dipanggil saat Select All ditekan
             selectAllFiltersBtn.addEventListener('click', function() {
                 activeFilters = ['crack', 'pothole'];
                 if (isAdmin) {
@@ -513,9 +537,6 @@
                 loadMarkers();
             });
 
-            // =========================================================================
-            // EVENT KLIK DI AREA BEBAS PETA (PINPOINT KOORDINAT BARU)
-            // =========================================================================
             map.on('click', function(e) {
                 clickLayer.clearLayers();
                 detailPopup.classList.add('hidden');
