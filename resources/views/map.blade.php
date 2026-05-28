@@ -17,9 +17,9 @@
 <body class="font-sans antialiased text-gray-900">
 
     @php
-        // ==========================================
+        // =========================================================================
         // LOGIKA PENGAMBILAN DATA & NOTIFIKASI
-        // ==========================================
+        // =========================================================================
         $isAdmin = Auth::check() && Auth::user()->email === 'admin@gmail.com';
         
         $query = \App\Models\RoadDamageSubmission::query();
@@ -204,11 +204,6 @@
                         <span class="font-semibold text-sm">Pothole</span>
                     </button>
                     
-                    <button class="btn-type flex items-center gap-3 px-4 py-2 bg-[#a38771] text-white rounded-full hover:bg-[#4a3219] transition duration-300" data-type="deformation">
-                        <span class="w-3 h-3 rounded-full bg-green-500 ring-2 ring-white"></span>
-                        <span class="font-semibold text-sm">Deformation</span>
-                    </button>
-
                     @if(Auth::check() && Auth::user()->email === 'admin@gmail.com')
                     <button class="btn-type flex items-center gap-3 px-4 py-2 bg-[#a38771] text-white rounded-full hover:bg-[#4a3219] transition duration-300" data-type="pending">
                         <span class="w-3 h-3 rounded-full bg-gray-500 ring-2 ring-white"></span>
@@ -313,7 +308,9 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Modal Functions
+        // =========================================================================
+        // KONTROL INTERFACE MODAL & SIDEBAR
+        // =========================================================================
         function openModal() {
             const overlay = document.getElementById('modalOverlay');
             const modal = document.getElementById('loginModal');
@@ -341,9 +338,6 @@
             if (e.target === overlay) { closeModal(); }
         });
 
-        // =====================================
-        // FUNGSI LEAFLET MAP & SIDEBAR
-        // =====================================
         document.addEventListener("DOMContentLoaded", function () {
             const sidebar = document.getElementById('sidebar');
             const openSidebarBtn = document.getElementById('openSidebar');
@@ -360,6 +354,9 @@
                 detailPopup.classList.remove('flex'); 
             });
 
+            // =========================================================================
+            // INISIALISASI UTAMA MAP LEAFLET
+            // =========================================================================
             var map = L.map('map', { 
                 zoomControl: false, 
                 attributionControl: false 
@@ -375,16 +372,23 @@
             var locations = @json($dbSubmissions);
             var baseUrl = "{{ url('/admin/report') }}"; 
 
+            // =========================================================================
+            // FUNGSI PEWARNAAN BERDASARKAN TIPE KERUSAKAN
+            // =========================================================================
             function getColor(type, status) {
                 if (status === 'pending') return 'gray'; 
                 if (type === 'crack') return 'blue';
                 if (type === 'pothole') return 'red';
+                // Warna green untuk deformation dibiarkan jika sewaktu-waktu database masih punya datanya
                 if (type === 'deformation') return 'green';
                 return 'gray'; 
             }
 
             let activeFilters = [];
 
+            // =========================================================================
+            // RENDERING & INTERAKSI TITIK KERUSAKAN (MARKER)
+            // =========================================================================
             function loadMarkers() {
                 markerLayer.clearLayers();
 
@@ -451,6 +455,9 @@
 
             loadMarkers();
 
+            // =========================================================================
+            // MANAJEMEN SISTEM FILTER SIDEBAR
+            // =========================================================================
             const filterBtns = document.querySelectorAll('.btn-type');
             const clearFiltersBtn = document.getElementById('clearFiltersBtn');
             const selectAllFiltersBtn = document.getElementById('selectAllFiltersBtn');
@@ -488,8 +495,12 @@
                 loadMarkers();
             });
 
+            // =========================================================================
+            // 2. UPDATE LOGIKA SELECT ALL FILTER
+            // =========================================================================
+            // 'deformation' telah dihapus dari array default yang dipanggil saat Select All ditekan
             selectAllFiltersBtn.addEventListener('click', function() {
-                activeFilters = ['crack', 'pothole', 'deformation'];
+                activeFilters = ['crack', 'pothole'];
                 if (isAdmin) {
                     activeFilters.push('pending');
                 }
@@ -502,6 +513,9 @@
                 loadMarkers();
             });
 
+            // =========================================================================
+            // EVENT KLIK DI AREA BEBAS PETA (PINPOINT KOORDINAT BARU)
+            // =========================================================================
             map.on('click', function(e) {
                 clickLayer.clearLayers();
                 detailPopup.classList.add('hidden');

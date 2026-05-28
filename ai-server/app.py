@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from ultralytics import YOLO
 import os
 import uuid
+from collections import Counter # Tambahan: Untuk menghitung elemen dominan
 
 app = Flask(__name__)
 
@@ -43,17 +44,24 @@ def predict():
         if os.path.exists(temp_filename):
             os.remove(temp_filename)
 
-        # 4. Tentukan kerusakan dominan (Ambil yang pertama terdeteksi)
+        # 4. Tentukan kerusakan dominan (Yang paling banyak muncul di gambar)
         if len(detected_damages) > 0:
+            # Hitung kemunculan tiap kerusakan. Contoh hasil: {'crack': 3, 'pothole': 1}
+            damage_counts = Counter(detected_damages)
+            
+            # Ambil 1 jenis kerusakan dengan jumlah terbanyak
+            most_common_damage = damage_counts.most_common(1)[0][0]
+            
             # Ubah ke huruf kecil agar seragam dengan Leaflet di Laravel
-            final_damage = detected_damages[0].lower() 
+            final_damage = most_common_damage.lower() 
         else:
             final_damage = 'aman' # Jika tidak ada jalan rusak yang terdeteksi
 
         # 5. Kirim balasan ke Laravel
         return jsonify({
             'damage_type': final_damage,
-            'all_detections': detected_damages # Mengirim semua deteksi (opsional untuk log)
+            'all_detections': damage_counts if len(detected_damages) > 0 else {}, # Kirim juga total hitungannya untuk log
+            'total_boxes': len(detected_damages)
         })
 
     except Exception as e:
