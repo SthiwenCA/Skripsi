@@ -65,6 +65,6 @@ php artisan serve
 ### Terminal 3: Kompilasi Aset Frontend (Opsional namun Disarankan)
 Jika Anda menggunakan Vite/TailwindCSS dan ingin melakukan modifikasi pada tampilan antarmuka (UI), atau jika tampilan web terlihat berantakan, buka terminal ketiga di direktori utama proyek dan jalankan:
 ```Bash
-    npm run dev
+npm run dev
 ```
 ### 🎉 Selesai!
