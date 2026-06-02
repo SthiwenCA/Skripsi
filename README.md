@@ -44,7 +44,7 @@ Karena sistem ini memisahkan antara beban Web dan beban AI, Anda wajib menyalaka
 Terminal 1: Menyalakan AI Server (Backend Python)
 Buka terminal baru di root folder, lalu jalankan perintah berikut secara berurutan:
 
-Bash
+```Bash
 # Masuk ke folder AI
 cd ai-server
 
@@ -57,12 +57,12 @@ python app.py
 
 Terminal 2: Menyalakan Web Server (Frontend Laravel)
 Buka terminal baru lagi (biarkan Terminal 1 tetap bekerja di latar belakang). Pastikan Anda berada di direktori utama (root) proyek, lalu jalankan:
-Bash
+```Bash
 php artisan serve
 
 Terminal 3: Kompilasi Aset Frontend (Opsional namun Disarankan)
 Jika Anda menggunakan Vite/TailwindCSS dan ingin melakukan modifikasi pada tampilan antarmuka (UI), atau jika tampilan web terlihat berantakan, buka terminal ketiga di direktori utama proyek dan jalankan:
-Bash
+```Bash
 npm run dev
 
 🎉 Selesai!
