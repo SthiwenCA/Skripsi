@@ -60,10 +60,11 @@ Buka terminal baru lagi (biarkan Terminal 1 tetap bekerja di latar belakang). Pa
 
 ```bash
 php artisan serve
+```
 
-Terminal 3: Kompilasi Aset Frontend (Opsional namun Disarankan)
+### Terminal 3: Kompilasi Aset Frontend (Opsional namun Disarankan)
 Jika Anda menggunakan Vite/TailwindCSS dan ingin melakukan modifikasi pada tampilan antarmuka (UI), atau jika tampilan web terlihat berantakan, buka terminal ketiga di direktori utama proyek dan jalankan:
-    ```Bash
+```Bash
     npm run dev
-
+    ```
 🎉 Selesai!
