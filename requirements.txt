@@ -1,0 +1,21 @@
+# --- Library AI & Computer Vision ---
+ultralytics>=8.0.0
+torch>=2.0.0
+torchvision
+opencv-python
+numpy>=1.20.0
+Pillow
+
+# --- Library API Server (Pilih salah satu web framework yang kamu pakai) ---
+# (Jika pakai Flask)
+Flask>=2.0.0
+flask-cors
+Werkzeug
+
+# (Jika pakai FastAPI)
+fastapi>=0.68.0
+uvicorn>=0.15.0
+python-multipart
+
+# --- Utilitas Tambahan ---
+python-dotenv

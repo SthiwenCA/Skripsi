@@ -1,59 +1,68 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🛣️ E-Apps Deteksi Kerusakan Jalan (Laravel + YOLOv8)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Repositori ini berisi sistem E-Apps untuk mendeteksi kerusakan jalan secara real-time. Sistem ini menggunakan arsitektur modern yang memisahkan antara Web Server berbasis framework **Laravel (PHP)** dan AI API Server berbasis **YOLOv8 (Python)**.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 💻 Persyaratan Sistem (Prerequisites)
+Sebelum menjalankan proyek ini di komputer (lokal), pastikan perangkat Anda sudah terinstal:
+- **XAMPP** (Untuk menjalankan MySQL Server & PHP v8.1+)
+- **Composer** (PHP Package Manager)
+- **Node.js & NPM**
+- **Python** (v3.8 - v3.11)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+---
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## 🚀 Cara Cepat Instalasi (Khusus Windows)
 
-## Learning Laravel
+Bagi penguji atau kolaborator yang baru saja melakukan `git clone` terhadap repositori ini, ikuti langkah berikut untuk menjalankan sistem di komputer Anda:
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+1. **Nyalakan XAMPP:** Buka aplikasi XAMPP Control Panel, lalu klik tombol **Start** pada modul **MySQL** (untuk database) dan **Apache** (opsional, jika ingin membuka phpMyAdmin).
+2. Buka folder proyek ini, lalu klik ganda (*Double-Click*) pada file `setup.bat`. Tunggu hingga terminal hitam selesai menginstal seluruh dependensi Laravel dan Python (sekitar 3-5 menit).
+3. Setelah selesai, buka file `.env` di teks editor Anda. Cari dan pastikan kredensial database lokal Anda sudah sesuai:
+   ```env
+   DB_CONNECTION=mysql
+   DB_HOST=127.0.0.1
+   DB_PORT=3306
+   DB_DATABASE=nama_database_anda
+   DB_USERNAME=root
+   DB_PASSWORD=
+5. Buka terminal (CMD/VS Code) di root folder, lalu jalankan perintah pembuatan tabel database:
+    ```Bash
+    php artisan migrate
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Konfigurasi Model AI (YOLOv8)
+Sistem membutuhkan bobot (weights) hasil pelatihan AI untuk mendeteksi jalan rusak.
 
-## Laravel Sponsors
+Siapkan file model YOLO Anda (bernama best.pt).
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+Masukkan file tersebut ke dalam direktori server AI, tepatnya di dalam folder ai-server/ (atau sesuaikan dengan jalur yang dipanggil di dalam file app.py).
 
-### Premium Partners
+🌐 Cara Menjalankan Sistem (Membutuhkan 2 atau 3 Terminal)
+Karena sistem ini memisahkan antara beban Web dan beban AI, Anda wajib menyalakan keduanya secara bersamaan di terminal yang berbeda.
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+Terminal 1: Menyalakan AI Server (Backend Python)
+Buka terminal baru di root folder, lalu jalankan perintah berikut secara berurutan:
 
-## Contributing
+Bash
+# Masuk ke folder AI
+cd ai-server
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+# Aktifkan virtual environment (Windows)
+..\.venv\Scripts\activate
+# (Catatan: Untuk Mac/Linux gunakan -> source ../.venv/bin/activate)
 
-## Code of Conduct
+# Jalankan server AI
+python app.py
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Terminal 2: Menyalakan Web Server (Frontend Laravel)
+Buka terminal baru lagi (biarkan Terminal 1 tetap bekerja di latar belakang). Pastikan Anda berada di direktori utama (root) proyek, lalu jalankan:
+Bash
+php artisan serve
 
-## Security Vulnerabilities
+Terminal 3: Kompilasi Aset Frontend (Opsional namun Disarankan)
+Jika Anda menggunakan Vite/TailwindCSS dan ingin melakukan modifikasi pada tampilan antarmuka (UI), atau jika tampilan web terlihat berantakan, buka terminal ketiga di direktori utama proyek dan jalankan:
+Bash
+npm run dev
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+🎉 Selesai!
