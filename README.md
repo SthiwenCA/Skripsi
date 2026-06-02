@@ -31,33 +31,35 @@ Bagi penguji atau kolaborator yang baru saja melakukan `git clone` terhadap repo
     ```Bash
     php artisan migrate
 
-Konfigurasi Model AI (YOLOv8)
+## Konfigurasi Model AI (YOLOv8)
 Sistem membutuhkan bobot (weights) hasil pelatihan AI untuk mendeteksi jalan rusak.
 
-Siapkan file model YOLO Anda (bernama best.pt).
+1. Siapkan file model YOLO Anda (bernama best.pt).
+2. Masukkan file tersebut ke dalam direktori server AI, tepatnya di dalam folder ai-server/ (atau sesuaikan dengan jalur yang dipanggil di dalam file app.py).
 
-Masukkan file tersebut ke dalam direktori server AI, tepatnya di dalam folder ai-server/ (atau sesuaikan dengan jalur yang dipanggil di dalam file app.py).
-
-🌐 Cara Menjalankan Sistem (Membutuhkan 2 atau 3 Terminal)
+## 🌐 Cara Menjalankan Sistem (Membutuhkan 2 atau 3 Terminal)
 Karena sistem ini memisahkan antara beban Web dan beban AI, Anda wajib menyalakan keduanya secara bersamaan di terminal yang berbeda.
 
-Terminal 1: Menyalakan AI Server (Backend Python)
+### Terminal 1: Menyalakan AI Server (Backend Python)
 Buka terminal baru di root folder, lalu jalankan perintah berikut secara berurutan:
-    ```Bash
-    # Masuk ke folder AI
-    cd ai-server
 
-    # Aktifkan virtual environment (Windows)
-    ..\.venv\Scripts\activate
-    # (Catatan: Untuk Mac/Linux gunakan -> source ../.venv/bin/activate)
+```bash
+# Masuk ke folder AI
+cd ai-server
 
-    # Jalankan server AI
-    python app.py
+# Aktifkan virtual environment (Windows)
+..\.venv\Scripts\activate
+# (Catatan: Untuk Mac/Linux gunakan -> source ../.venv/bin/activate)
 
-Terminal 2: Menyalakan Web Server (Frontend Laravel)
+# Jalankan server AI
+python app.py
+```
+
+### Terminal 2: Menyalakan Web Server (Frontend Laravel)
 Buka terminal baru lagi (biarkan Terminal 1 tetap bekerja di latar belakang). Pastikan Anda berada di direktori utama (root) proyek, lalu jalankan:
-    ```Bash
-    php artisan serve
+
+```bash
+php artisan serve
 
 Terminal 3: Kompilasi Aset Frontend (Opsional namun Disarankan)
 Jika Anda menggunakan Vite/TailwindCSS dan ingin melakukan modifikasi pada tampilan antarmuka (UI), atau jika tampilan web terlihat berantakan, buka terminal ketiga di direktori utama proyek dan jalankan:
