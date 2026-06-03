@@ -9,7 +9,6 @@
 
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
-
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -415,14 +414,13 @@
                         document.getElementById('detail-date').innerText = loc.date;
                         document.getElementById('detail-image').src = loc.image;
                         
-                        // Set nilai text Detected Damage Type (meskipun mungkin nanti di-hidden)
                         document.getElementById('detail-detected-type').innerText = loc.ai_type;
                         
                         let typeTextSpan = document.getElementById('detail-type');
                         let editDropdown = document.getElementById('edit-damage-type');
                         let approveInput = document.getElementById('approve-damage-type-input');
                         let labelVerifikasi = document.getElementById('label-verifikasi');
-                        let rowDetectedType = document.getElementById('row-detected-type'); // Tarik elemen baris Detected
+                        let rowDetectedType = document.getElementById('row-detected-type'); 
 
                         if (isAdmin) {
                             let adminActions = document.getElementById('admin-action-buttons');
@@ -431,20 +429,18 @@
                                 document.getElementById('delete-form').action = baseUrl + '/' + loc.id;
 
                                 if (loc.status === 'approved') {
-                                    // JIKA SUDAH APPROVED
                                     document.getElementById('approve-form').classList.add('hidden');
                                     if(editDropdown) editDropdown.classList.add('hidden');
                                     
-                                    rowDetectedType.classList.add('hidden'); // Sembunyikan baris Detected
+                                    rowDetectedType.classList.add('hidden'); 
                                     labelVerifikasi.innerText = 'Damage Type : ';
                                     typeTextSpan.innerText = loc.type;
                                     typeTextSpan.classList.remove('hidden');
                                 } else {
-                                    // JIKA MASIH PENDING
                                     document.getElementById('approve-form').classList.remove('hidden');
                                     typeTextSpan.classList.add('hidden'); 
                                     
-                                    rowDetectedType.classList.remove('hidden'); // Munculkan baris Detected
+                                    rowDetectedType.classList.remove('hidden'); 
                                     labelVerifikasi.innerText = 'Verifikasi Damage Type : ';
                                     
                                     if(editDropdown) {
@@ -463,13 +459,12 @@
                                 adminActions.classList.add('flex');
                             }
                         } else {
-                            // UNTUK GUEST ATAU USER BIASA
                             let displayType = loc.type;
                             if (loc.status === 'pending') {
                                 displayType += ' (Pending)';
                             }
                             
-                            rowDetectedType.classList.add('hidden'); // Selalu sembunyikan baris Detected untuk user biasa
+                            rowDetectedType.classList.add('hidden'); 
                             labelVerifikasi.innerText = 'Damage Type : ';
                             typeTextSpan.innerText = displayType;
                             typeTextSpan.classList.remove('hidden');

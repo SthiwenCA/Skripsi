@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\RoadDamageSubmission;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http; // WAJIB ADA untuk menembak API Python
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
 class RoadDamageSubmissionController extends Controller
@@ -36,16 +36,19 @@ class RoadDamageSubmissionController extends Controller
             $validatedData['image_path'] = 'submissions/' . $imageName;
         }
 
-        // Jalur absolut file untuk dikirim ke Python
+        // Jalur absolut file untuk dikirim ke Python (Aman di VPS Linux)
         $absolutePath = storage_path('app/public/' . $validatedData['image_path']);
 
-        // 3. KIRIM KE AI (PYTHON) - Pastikan server Python nyala di port 5000
+        // 3. KIRIM KE AI (PYTHON)
         $damageType = 'Unknown'; // Default jika AI gagal
         
         try {
+            // Menerapkan env() agar URL API Python dinamis
+            $pythonApiUrl = env('PYTHON_API_URL', 'http://127.0.0.1:5000/predict');
+            
             $response = Http::attach(
                 'image', file_get_contents($absolutePath), $imageName
-            )->post('http://127.0.0.1:5000/predict');
+            )->post($pythonApiUrl);
 
             if ($response->successful()) {
                 $damageType = $response->json()['damage_type'];
