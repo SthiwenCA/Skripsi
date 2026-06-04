@@ -71,8 +71,18 @@ class RoadDamageSubmissionController extends Controller
                 $damageType = $response->json()['damage_type'];
             }
         } catch (\Exception $e) {
-            // Jika server Python mati, biarkan statusnya 'Pending' atau 'Error'
-            $damageType = 'AI Server Offline';
+            // ==========================================
+            // DEBUGGING MODE: ON
+            // Kita matikan sementara teks "Offline" ini
+            // $damageType = 'AI Server Offline';
+            
+            // Kita paksa aplikasi berhenti dan memunculkan error aslinya ke layar
+            dd([
+                'Pesan_Error_Asli' => $e->getMessage(),
+                'Target_URL_API' => $pythonApiUrl,
+                'Lokasi_File_Gambar' => $absolutePath
+            ]);
+            // ==========================================
         }
 
         // 4. Simpan ke Database
