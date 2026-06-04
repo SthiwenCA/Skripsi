@@ -46,7 +46,9 @@ class RoadDamageSubmissionController extends Controller
         // 2. Simpan Gambar ke Storage
         if ($request->hasFile('image')) {
             $image = $request->file('image');
-            $imageName = time() . '_' . $image->getClientOriginalName();
+            
+            $safeName = str_replace(' ', '_', $image->getClientOriginalName());
+            $imageName = time() . '_' . $safeName;
             
             // Simpan ke storage/app/public/submissions
             $image->storeAs('submissions', $imageName, 'public');
@@ -74,14 +76,14 @@ class RoadDamageSubmissionController extends Controller
             // ==========================================
             // DEBUGGING MODE: ON
             // Kita matikan sementara teks "Offline" ini
-            // $damageType = 'AI Server Offline';
+            $damageType = 'AI Server Offline';
             
             // Kita paksa aplikasi berhenti dan memunculkan error aslinya ke layar
-            dd([
-                'Pesan_Error_Asli' => $e->getMessage(),
-                'Target_URL_API' => $pythonApiUrl,
-                'Lokasi_File_Gambar' => $absolutePath
-            ]);
+            // dd([
+            //     'Pesan_Error_Asli' => $e->getMessage(),
+            //     'Target_URL_API' => $pythonApiUrl,
+            //     'Lokasi_File_Gambar' => $absolutePath
+            // ]);
             // ==========================================
         }
 
