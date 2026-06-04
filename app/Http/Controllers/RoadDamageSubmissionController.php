@@ -23,7 +23,7 @@ class RoadDamageSubmissionController extends Controller
             'latitude' => 'required|numeric',
             'longitude' => 'required|numeric',
             'submission_date' => 'required|date',
-            'image' => 'required|image|mimes:jpeg,png,jpg|max:2048', 
+            'image' => 'required|image|mimes:jpeg,png,jpg|max:10240', 
         ]);
 
         // ===============================================================
