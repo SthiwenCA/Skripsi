@@ -18,13 +18,30 @@ class RoadDamageSubmissionController extends Controller
 
     public function store(Request $request)
     {
-        // 1. Validasi
+        // 1. Validasi Input
         $validatedData = $request->validate([
             'latitude' => 'required|numeric',
             'longitude' => 'required|numeric',
             'submission_date' => 'required|date',
             'image' => 'required|image|mimes:jpeg,png,jpg|max:2048', 
         ]);
+
+        // ===============================================================
+        // 1.5. CEK DUPLIKASI (ANTI SPAM-CLICK)
+        // Mengecek apakah user ini baru saja mengirim laporan di koordinat 
+        // yang sama dalam 1 menit terakhir.
+        // ===============================================================
+        $isDuplicate = RoadDamageSubmission::where('user_id', auth()->id())
+            ->where('latitude', $validatedData['latitude'])
+            ->where('longitude', $validatedData['longitude'])
+            ->where('created_at', '>=', Carbon::now()->subMinute())
+            ->exists(); // Gunakan exists() agar query lebih ringan
+
+        if ($isDuplicate) {
+            // Jika terdeteksi duplikat, kembalikan ke halaman sebelumnya dengan pesan error
+            // Request dihentikan di sini, sehingga AI dan Storage tidak terbebani
+            return redirect()->back()->with('error', 'Laporan di koordinat ini sudah terkirim. Mohon tunggu sebentar untuk mengirim laporan baru.');
+        }
 
         // 2. Simpan Gambar ke Storage
         if ($request->hasFile('image')) {

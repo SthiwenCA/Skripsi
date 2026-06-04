@@ -272,7 +272,7 @@
 
                 @if(Auth::check() && Auth::user()->email === 'admin@gmail.com')
                 <div id="admin-action-buttons" class="hidden flex gap-3 mt-2">
-                    <form id="approve-form" method="POST" action="" class="flex-1">
+                    <form id="approve-form" method="POST" action="" class="flex-1" onsubmit="return handleApproveSubmit(this);">
                         @csrf
                         @method('PATCH')
                         
@@ -283,7 +283,7 @@
                         </button>
                     </form>
 
-                    <form id="delete-form" method="POST" action="" class="flex-1" onsubmit="return confirm('Yakin ingin menghapus laporan ini?');">
+                    <form id="delete-form" method="POST" action="" class="flex-1" onsubmit="return handleDeleteSubmit(this);">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="w-full bg-[#cc0000] text-white py-2 rounded-lg font-bold shadow hover:bg-red-700 transition text-sm">
@@ -314,6 +314,31 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+        // Fungsi JS untuk mengunci tombol Approve saat diklik
+        function handleApproveSubmit(form) {
+            const btn = form.querySelector('button[type="submit"]');
+            if (btn.disabled) return false; 
+            
+            btn.disabled = true;
+            btn.innerHTML = 'Loading...';
+            btn.classList.add('opacity-70', 'cursor-not-allowed');
+            return true;
+        }
+
+        // Fungsi JS untuk mengunci tombol Delete saat diklik
+        function handleDeleteSubmit(form) {
+            if (confirm('Yakin ingin menghapus laporan ini?')) {
+                const btn = form.querySelector('button[type="submit"]');
+                if (btn.disabled) return false; 
+                
+                btn.disabled = true;
+                btn.innerHTML = 'Loading...';
+                btn.classList.add('opacity-70', 'cursor-not-allowed');
+                return true;
+            }
+            return false; 
+        }
+
         function openModal() {
             const overlay = document.getElementById('modalOverlay');
             const modal = document.getElementById('loginModal');

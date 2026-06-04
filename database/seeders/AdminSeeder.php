@@ -15,7 +15,7 @@ class AdminSeeder extends Seeder
             ['email' => 'admin@gmail.com'], // Patokan: Cari email ini
             [
                 'name' => 'Administrator',
-                'password' => Hash::make('rahasia123'), // Ganti 'rahasia123' dengan password keinginanmu
+                'password' => Hash::make('rahasia123'), 
             ]
         );
     }
