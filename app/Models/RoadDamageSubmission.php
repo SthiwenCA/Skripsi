@@ -19,8 +19,9 @@ class RoadDamageSubmission extends Model
         'ai_detected_type',
         'submission_date',
         'image_path',
+        'fixed_image_path', // Untuk menyimpan foto bukti jalan telah diperbaiki
         'notes',          // Jika kamu menambahkan kolom notes sebelumnya
-        'status',         // <--- TAMBAHAN BARU: Diizinkan agar controller bisa menyimpan status pending/approved
+        'status',         // Diizinkan agar controller bisa menyimpan status pending/approved/fixed
     ];
 
     // Relasi ke model User

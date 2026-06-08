@@ -18,7 +18,6 @@ class RoadDamageSubmissionController extends Controller
 
     public function store(Request $request)
     {
-        // 1. Validasi Input
         $validatedData = $request->validate([
             'latitude' => 'required|numeric',
             'longitude' => 'required|numeric',
@@ -26,45 +25,30 @@ class RoadDamageSubmissionController extends Controller
             'image' => 'required|image|mimes:jpeg,png,jpg|max:10240', 
         ]);
 
-        // ===============================================================
-        // 1.5. CEK DUPLIKASI (ANTI SPAM-CLICK)
-        // Mengecek apakah user ini baru saja mengirim laporan di koordinat 
-        // yang sama dalam 1 menit terakhir.
-        // ===============================================================
         $isDuplicate = RoadDamageSubmission::where('user_id', auth()->id())
             ->where('latitude', $validatedData['latitude'])
             ->where('longitude', $validatedData['longitude'])
             ->where('created_at', '>=', Carbon::now()->subMinute())
-            ->exists(); // Gunakan exists() agar query lebih ringan
+            ->exists(); 
 
         if ($isDuplicate) {
-            // Jika terdeteksi duplikat, kembalikan ke halaman sebelumnya dengan pesan error
-            // Request dihentikan di sini, sehingga AI dan Storage tidak terbebani
             return redirect()->back()->with('error', 'Laporan di koordinat ini sudah terkirim. Mohon tunggu sebentar untuk mengirim laporan baru.');
         }
 
-        // 2. Simpan Gambar ke Storage
         if ($request->hasFile('image')) {
             $image = $request->file('image');
-            
             $safeName = str_replace(' ', '_', $image->getClientOriginalName());
             $imageName = time() . '_' . $safeName;
             
-            // Simpan ke storage/app/public/submissions
             $image->storeAs('submissions', $imageName, 'public');
             $validatedData['image_path'] = 'submissions/' . $imageName;
         }
 
-        // Jalur absolut file untuk dikirim ke Python (Aman di VPS Linux)
         $absolutePath = storage_path('app/public/' . $validatedData['image_path']);
-
-        // 3. KIRIM KE AI (PYTHON)
-        $damageType = 'Unknown'; // Default jika AI gagal
+        $damageType = 'Unknown'; 
         
         try {
-            // Menerapkan env() agar URL API Python dinamis
             $pythonApiUrl = env('PYTHON_API_URL', 'http://127.0.0.1:5000/predict');
-            
             $response = Http::attach(
                 'image', file_get_contents($absolutePath), $imageName
             )->post($pythonApiUrl);
@@ -73,38 +57,62 @@ class RoadDamageSubmissionController extends Controller
                 $damageType = $response->json()['damage_type'];
             }
         } catch (\Exception $e) {
-            // ==========================================
-            // DEBUGGING MODE: ON
-            // Kita matikan sementara teks "Offline" ini
             $damageType = 'AI Server Offline';
-            
-            // Kita paksa aplikasi berhenti dan memunculkan error aslinya ke layar
-            // dd([
-            //     'Pesan_Error_Asli' => $e->getMessage(),
-            //     'Target_URL_API' => $pythonApiUrl,
-            //     'Lokasi_File_Gambar' => $absolutePath
-            // ]);
-            // ==========================================
         }
 
-        // 4. Simpan ke Database
         RoadDamageSubmission::create([
             'user_id' => auth()->id(),
             'latitude' => $validatedData['latitude'],
             'longitude' => $validatedData['longitude'],
             'submission_date' => $validatedData['submission_date'],
             'image_path' => $validatedData['image_path'],
-            
-            // ===============================================================
-            // UPDATE: MENYIMPAN HISTORI AI
-            // ===============================================================
-            'ai_detected_type' => $damageType, // Menyimpan tebakan asli/murni AI
-            'damage_type' => $damageType,      // Tebakan awal (yang nanti bisa di-edit Admin)
-            
+            'ai_detected_type' => $damageType, 
+            'damage_type' => $damageType,      
             'address' => $request->input('address', 'Alamat tidak ditemukan'),
             'status' => 'pending',
         ]);
 
         return redirect('/')->with('success', 'Laporan Berhasil : Menunggu Verifikasi Admin');
+    }
+
+    public function submitRoadFixed(Request $request, $id)
+    {
+        $request->validate([
+            'fixed_image' => 'required|image|mimes:jpeg,png,jpg|max:10240'
+        ]);
+
+        $report = RoadDamageSubmission::findOrFail($id);
+
+        // ===============================================================
+        // UPDATE KEAMANAN: HANYA PEMILIK LAPORAN (ATAU ADMIN) YANG BISA UPLOAD BUKTI
+        // ===============================================================
+        if ($report->user_id !== auth()->id() && auth()->user()->email !== 'admin@gmail.com') {
+            return redirect()->back()->with('error', 'Akses ditolak. Anda tidak memiliki izin untuk mengubah laporan orang lain.');
+        }
+
+        if ($request->hasFile('fixed_image')) {
+            if ($report->fixed_image_path) {
+                Storage::disk('public')->delete($report->fixed_image_path);
+            }
+
+            $path = $request->file('fixed_image')->store('fixed_roads', 'public');
+            
+            $report->fixed_image_path = $path;
+            $report->status = 'pending_fixed'; 
+            $report->save();
+        }
+
+        return redirect()->back()->with('success', 'Bukti foto perbaikan berhasil dikirim! Menunggu validasi Admin.');
+    }
+    
+    // =========================================================================
+    // FITUR HISTORY LAPORAN USER
+    // =========================================================================
+    public function history()
+    {
+        // Ambil semua laporan yang dibuat oleh user yang sedang login
+        $reports = RoadDamageSubmission::where('user_id', auth()->id())->latest()->get();
+        
+        return view('user.history', compact('reports'));
     }
 }

@@ -18,14 +18,19 @@
     @php
         $isAdmin = Auth::check() && Auth::user()->email === 'admin@gmail.com';
         
-        $query = \App\Models\RoadDamageSubmission::query();
+        $query = \App\Models\RoadDamageSubmission::with('user');
+        
         if (!$isAdmin) {
             $query->where('status', 'approved');
+        } else {
+            $query->whereIn('status', ['pending', 'approved', 'pending_fixed']);
         }
 
         $dbSubmissions = $query->get()->map(function($sub) {
             return [
                 'id' => $sub->id,
+                'user_id' => $sub->user_id,
+                'submitter' => $sub->user ? $sub->user->name : 'Unknown User',
                 'lat' => $sub->latitude,
                 'lng' => $sub->longitude,
                 'type' => strtolower($sub->damage_type ?? 'unknown'),
@@ -33,7 +38,8 @@
                 'status' => strtolower($sub->status ?? 'pending'),
                 'address' => $sub->address ?? 'Lokasi Pinpoint (Tidak Diketahui)',
                 'date' => \Carbon\Carbon::parse($sub->submission_date)->format('d F Y'),
-                'image' => asset('storage/' . $sub->image_path)
+                'image' => asset('storage/' . $sub->image_path),
+                'fixed_image' => $sub->fixed_image_path ? asset('storage/' . $sub->fixed_image_path) : null
             ];
         });
 
@@ -42,27 +48,49 @@
 
         if (Auth::check()) {
             if ($isAdmin) {
-                $pendingData = \App\Models\RoadDamageSubmission::where('status', 'pending')->latest()->take(5)->get();
-                $notifCount = \App\Models\RoadDamageSubmission::where('status', 'pending')->count();
+                $pendingData = \App\Models\RoadDamageSubmission::whereIn('status', ['pending', 'pending_fixed'])->latest()->take(5)->get();
+                $notifCount = \App\Models\RoadDamageSubmission::whereIn('status', ['pending', 'pending_fixed'])->count();
                 
                 foreach($pendingData as $item) {
-                    $notifications[] = [
-                        'title' => 'Laporan Baru Masuk 🚨',
-                        'desc' => 'Kerusakan tipe ' . strtoupper($item->damage_type) . ' menunggu verifikasi.',
-                        'time' => \Carbon\Carbon::parse($item->created_at)->diffForHumans()
-                    ];
+                    if ($item->status === 'pending_fixed') {
+                        $notifications[] = [
+                            'title' => 'Validasi Perbaikan 🛠️',
+                            'desc' => 'Ada pengajuan bukti bahwa jalan sudah diperbaiki.',
+                            'time' => \Carbon\Carbon::parse($item->updated_at)->diffForHumans()
+                        ];
+                    } else {
+                        $notifications[] = [
+                            'title' => 'Laporan Baru Masuk 🚨',
+                            'desc' => 'Kerusakan tipe ' . strtoupper($item->damage_type) . ' menunggu verifikasi.',
+                            'time' => \Carbon\Carbon::parse($item->created_at)->diffForHumans()
+                        ];
+                    }
                 }
             } else {
-                $approvedData = \App\Models\RoadDamageSubmission::where('user_id', Auth::id())
-                                    ->where('status', 'approved')
+                $userUpdates = \App\Models\RoadDamageSubmission::where('user_id', Auth::id())
+                                    ->whereIn('status', ['approved', 'fixed', 'denied'])
                                     ->orderBy('updated_at', 'desc')
                                     ->take(5)->get();
-                $notifCount = $approvedData->count(); 
+                $notifCount = $userUpdates->count(); 
                 
-                foreach($approvedData as $item) {
+                foreach($userUpdates as $item) {
+                    $titleText = '';
+                    $descText = '';
+                    
+                    if($item->status == 'approved') {
+                        $titleText = 'Laporan Disetujui! 🎉';
+                        $descText = 'Laporan ' . strtoupper($item->damage_type) . ' Anda telah tayang di peta.';
+                    } elseif($item->status == 'fixed') {
+                        $titleText = 'Jalan Diperbaiki! 🛠️';
+                        $descText = 'Kerusakan ' . strtoupper($item->damage_type) . ' yang Anda laporkan telah divalidasi selesai.';
+                    } elseif($item->status == 'denied') {
+                        $titleText = 'Laporan Ditolak ❌';
+                        $descText = 'Laporan ' . strtoupper($item->damage_type) . ' Anda tidak valid.';
+                    }
+
                     $notifications[] = [
-                        'title' => 'Laporan Disetujui! 🎉',
-                        'desc' => 'Laporan ' . strtoupper($item->damage_type) . ' Anda telah tayang di peta.',
+                        'title' => $titleText,
+                        'desc' => $descText,
                         'time' => \Carbon\Carbon::parse($item->updated_at)->diffForHumans()
                     ];
                 }
@@ -74,47 +102,42 @@
         
         @if (session('success'))
             <div id="toast-success" class="absolute top-20 left-1/2 transform -translate-x-1/2 z-[1000] bg-[#4a3219] text-white px-6 py-3 rounded-full shadow-xl font-semibold flex items-center gap-3 transition-opacity duration-500">
-                <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
-                </svg>
+                <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
                 {{ session('success') }}
             </div>
-            <script>
-                setTimeout(() => {
-                    const toast = document.getElementById('toast-success');
-                    if(toast) {
-                        toast.classList.add('opacity-0');
-                        setTimeout(() => toast.remove(), 500);
-                    }
-                }, 3000);
-            </script>
+            <script>setTimeout(() => { const toast = document.getElementById('toast-success'); if(toast) { toast.classList.add('opacity-0'); setTimeout(() => toast.remove(), 500); } }, 4000);</script>
+        @endif
+        
+        @if (session('error'))
+            <div id="toast-error" class="absolute top-20 left-1/2 transform -translate-x-1/2 z-[1000] bg-red-600 text-white px-6 py-3 rounded-full shadow-xl font-semibold flex items-center gap-3 transition-opacity duration-500">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path></svg>
+                {{ session('error') }}
+            </div>
+            <script>setTimeout(() => { const toast = document.getElementById('toast-error'); if(toast) { toast.classList.add('opacity-0'); setTimeout(() => toast.remove(), 500); } }, 5000);</script>
         @endif
 
-        <button id="openSidebar" class="absolute top-4 left-4 z-[500] bg-[#4a3219] text-white p-2 rounded-md shadow-md hover:bg-[#382613] transition">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-            </svg>
+        <button id="openSidebar" class="absolute top-4 left-4 z-[500] bg-[#4a3219] text-white p-2 rounded-md shadow-lg border-2 border-[#382613] hover:bg-[#382613] hover:shadow-xl transition-all duration-200">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
         </button>
 
         <div class="absolute top-4 right-4 z-[500] flex items-center gap-3">
+            <button onclick="openHelpModal()" class="relative p-2 bg-white rounded-full shadow-lg border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 hover:shadow-xl transition-all duration-200 focus:outline-none flex items-center justify-center group" title="Cara Penggunaan / About Us">
+                <svg class="w-6 h-6 text-gray-700 group-hover:text-[#4a3219] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </button>
+
             @auth
                 <div x-data="{ openNotif: false, hideBadge: false }" class="relative">
-                    <button @click="openNotif = !openNotif; hideBadge = true" @click.outside="openNotif = false" class="relative p-2 bg-white rounded-full shadow-sm border border-gray-200 hover:bg-gray-50 transition focus:outline-none">
-                        <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
-                        </svg>
-                        
+                    <button @click="openNotif = !openNotif; hideBadge = true" @click.outside="openNotif = false" class="relative p-2 bg-white rounded-full shadow-lg border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 hover:shadow-xl transition-all duration-200 focus:outline-none">
+                        <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
                         @if($notifCount > 0)
-                            <span x-show="!hideBadge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-[10px] font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-red-600 rounded-full">
-                                {{ $notifCount }}
-                            </span>
+                            <span x-show="!hideBadge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-[10px] font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-red-600 border-2 border-white rounded-full">{{ $notifCount }}</span>
                         @endif
                     </button>
 
                     <div x-cloak x-show="openNotif" x-transition class="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl py-2 border border-gray-100 overflow-hidden z-[1000]">
-                        <div class="px-4 py-3 border-b border-gray-100 font-extrabold text-gray-800 flex justify-between items-center bg-gray-50">
-                            <span>Notifikasi</span>
-                        </div>
+                        <div class="px-4 py-3 border-b border-gray-100 font-extrabold text-gray-800 flex justify-between items-center bg-gray-50"><span>Notifikasi</span></div>
                         <div class="max-h-72 overflow-y-auto">
                             @forelse($notifications as $notif)
                                 <div class="px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition cursor-default">
@@ -123,28 +146,19 @@
                                     <p class="text-[10px] text-gray-400 mt-2 font-semibold">{{ $notif['time'] }}</p>
                                 </div>
                             @empty
-                                <div class="px-4 py-8 text-center text-sm text-gray-500 font-medium">
-                                    Belum ada notifikasi baru.
-                                </div>
+                                <div class="px-4 py-8 text-center text-sm text-gray-500 font-medium">Belum ada notifikasi baru.</div>
                             @endforelse
                         </div>
                     </div>
                 </div>
 
                 <div x-data="{ open: false }" class="relative">
-                    <button @click="open = !open" @click.outside="open = false" class="flex items-center gap-2 bg-white px-4 py-2 border border-gray-200 rounded-full shadow-sm font-bold text-gray-700 hover:bg-gray-50 transition focus:outline-none">
+                    <button @click="open = !open" @click.outside="open = false" class="flex items-center gap-2 bg-white px-4 py-2 border-2 border-gray-300 rounded-full shadow-lg font-bold text-gray-700 hover:border-gray-400 hover:bg-gray-50 hover:shadow-xl transition-all duration-200 focus:outline-none">
                         <span>{{ Auth::user()->email === 'admin@gmail.com' ? 'Administrator' : Auth::user()->name }}</span>
-                        <svg class="w-4 h-4 transition-transform duration-200" :class="{'rotate-180': open}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                        </svg>
+                        <svg class="w-4 h-4 transition-transform duration-200" :class="{'rotate-180': open}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </button>
-                    <div x-cloak x-show="open" x-transition class="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg py-1 border border-gray-100 overflow-hidden">
-                        @if(Auth::user()->email === 'admin@gmail.com')
-                            <a href="{{ route('admin.dashboard') }}" class="block px-4 py-2 text-sm text-gray-700 font-bold hover:bg-gray-100 border-b border-gray-100">
-                                📋 Tabel Manajemen
-                            </a>
-                        @endif
-                        <a href="{{ route('profile.edit') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</a>
+                    <div x-cloak x-show="open" x-transition class="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-2xl py-1 border border-gray-100 overflow-hidden">
+                        <a href="{{ route('profile.edit') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 font-semibold">Profile</a>
                         <div class="border-t border-gray-100 my-1"></div>
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
@@ -154,16 +168,14 @@
                 </div>
             @else
                 <div x-data="{ open: false }" class="relative">
-                    <button @click="open = !open" @click.outside="open = false" class="flex items-center gap-2 bg-white px-4 py-2 border border-gray-200 rounded-full shadow-sm font-bold text-gray-700 hover:bg-gray-50 transition focus:outline-none">
+                    <button @click="open = !open" @click.outside="open = false" class="flex items-center gap-2 bg-white px-4 py-2 border-2 border-gray-300 rounded-full shadow-lg font-bold text-gray-700 hover:border-gray-400 hover:bg-gray-50 hover:shadow-xl transition-all duration-200 focus:outline-none">
                         <span>Guest</span>
-                        <svg class="w-4 h-4 transition-transform duration-200" :class="{'rotate-180': open}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                        </svg>
+                        <svg class="w-4 h-4 transition-transform duration-200" :class="{'rotate-180': open}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </button>
-                    <div x-cloak x-show="open" x-transition class="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg py-1 border border-gray-100 overflow-hidden">
-                        <a href="{{ route('login') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Log in</a>
+                    <div x-cloak x-show="open" x-transition class="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-2xl py-1 border border-gray-100 overflow-hidden">
+                        <a href="{{ route('login') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 font-semibold">Log in</a>
                         @if (Route::has('register'))
-                            <a href="{{ route('register') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Register</a>
+                            <a href="{{ route('register') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 font-semibold">Register</a>
                         @endif
                     </div>
                 </div>
@@ -174,56 +186,62 @@
             <div class="flex justify-between items-center p-6 border-b border-[#d8c8b8] shrink-0">
                 <h2 class="text-2xl font-bold text-gray-900">Settings</h2>
                 <button id="closeSidebar" class="bg-[#a38771] text-white p-1 rounded-md hover:bg-[#8c7460] transition shadow">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
 
             <div class="p-6 flex-1 overflow-y-auto">
-                <h4 class="font-bold text-lg mb-4 text-gray-900">Damage type</h4>
+                <h4 class="font-bold text-lg mb-4 text-gray-900">Damage Type</h4>
                 <div class="flex flex-col gap-3 mb-6">
                     <button class="btn-type flex items-center gap-3 px-4 py-2 bg-[#a38771] text-white rounded-full hover:bg-[#4a3219] transition duration-300" data-type="crack">
                         <span class="w-3 h-3 rounded-full bg-blue-500 ring-2 ring-white"></span>
                         <span class="font-semibold text-sm">Cracks</span>
                     </button>
-                    
                     <button class="btn-type flex items-center gap-3 px-4 py-2 bg-[#a38771] text-white rounded-full hover:bg-[#4a3219] transition duration-300" data-type="pothole">
                         <span class="w-3 h-3 rounded-full bg-red-500 ring-2 ring-white"></span>
                         <span class="font-semibold text-sm">Pothole</span>
                     </button>
-
                     @if(Auth::check() && Auth::user()->email === 'admin@gmail.com')
                     <button class="btn-type flex items-center gap-3 px-4 py-2 bg-[#a38771] text-white rounded-full hover:bg-[#4a3219] transition duration-300" data-type="pending">
                         <span class="w-3 h-3 rounded-full bg-gray-500 ring-2 ring-white"></span>
-                        <span class="font-semibold text-sm text-gray-200">Pending (Admin)</span>
+                        <span class="font-semibold text-sm text-gray-200">Pending (Awal)</span>
+                    </button>
+                    <button class="btn-type flex items-center gap-3 px-4 py-2 bg-[#a38771] text-white rounded-full hover:bg-[#4a3219] transition duration-300" data-type="pending_fixed">
+                        <span class="w-3 h-3 rounded-full bg-orange-500 ring-2 ring-white"></span>
+                        <span class="font-semibold text-sm text-orange-100">Validasi Perbaikan</span>
                     </button>
                     @endif
                 </div>
 
                 <div class="flex justify-center gap-3 border-t border-[#d8c8b8] pt-6">
                     <button id="clearFiltersBtn" class="flex items-center gap-2 px-5 py-2 bg-[#a38771] text-white rounded-full hover:bg-[#8c7460] transition shadow-sm font-bold text-sm">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M20 12H4"></path></svg>
-                        Clear
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M20 12H4"></path></svg> Clear
                     </button>
                     <button id="selectAllFiltersBtn" class="flex items-center gap-2 px-5 py-2 bg-[#a38771] text-white rounded-full hover:bg-[#8c7460] transition shadow-sm font-bold text-sm">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
-                        Select All
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg> Select All
                     </button>
                 </div>
             </div>
+
+            @auth
+            <div class="px-6 pb-4 shrink-0">
+                @if(Auth::user()->email === 'admin@gmail.com')
+                    <a href="{{ route('admin.dashboard') }}" class="w-full flex items-center justify-center gap-2 bg-[#a38771] text-white py-2.5 rounded-xl hover:bg-[#8c7460] transition shadow-md font-extrabold text-sm">📋 Tabel Manajemen</a>
+                @else
+                    <a href="{{ route('user.history') }}" class="w-full flex items-center justify-center gap-2 bg-[#a38771] text-white py-2.5 rounded-xl hover:bg-[#8c7460] transition shadow-md font-extrabold text-sm">📜 List Laporan</a>
+                @endif
+            </div>
+            @endauth
 
             <div class="p-6 shrink-0 border-t border-[#d8c8b8]">
                 <p class="font-bold text-center text-gray-900 mb-2">Upload Photos</p>
                 @auth
                     <a href="{{ route('submissions.create') }}" class="w-full flex items-center justify-center gap-2 bg-[#4a3219] text-white py-2 rounded-full hover:bg-[#382613] transition shadow-md font-semibold text-sm">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                        Upload
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg> Upload
                     </a>
                 @else
                     <button onclick="openModal()" class="w-full flex items-center justify-center gap-2 bg-[#4a3219] text-white py-2 rounded-full hover:bg-[#382613] transition shadow-md font-semibold text-sm text-center">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>
-                        Login untuk Upload
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg> Login untuk Upload
                     </button>
                 @endauth
             </div>
@@ -231,72 +249,93 @@
 
         <div id="map" class="absolute inset-0 z-10"></div>
 
-        <div id="damage-detail-popup" class="hidden absolute bottom-10 left-1/2 transform -translate-x-1/2 bg-[#eaddcf] p-6 rounded-2xl shadow-2xl z-[550] w-[700px] max-w-[90vw] flex-row gap-6 border border-[#c1b1a3]">
-            <button id="closeDetailPopupBtn" class="absolute -top-3 -right-3 bg-[#6b4e3d] text-white rounded-lg w-8 h-8 flex items-center justify-center font-bold shadow-md hover:bg-[#4a3224] transition">
-                ✕
-            </button>
-            <div class="w-2/5 shrink-0 flex items-center">
-                <img id="detail-image" src="" alt="Foto Kerusakan" class="w-full h-40 object-cover rounded-xl shadow-sm border border-gray-300">
-            </div>
-            <div class="w-3/5 flex flex-col justify-between gap-4 text-gray-900 cursor-default">
-                
-                <div class="flex flex-col gap-3">
-                    <div class="text-[15px] leading-snug">
+        <div id="damage-detail-popup" class="hidden absolute bottom-10 left-1/2 transform -translate-x-1/2 bg-[#eaddcf] p-6 rounded-2xl shadow-2xl z-[550] w-[750px] max-w-[95vw] flex-col gap-4 border border-[#c1b1a3]">
+            <button id="closeDetailPopupBtn" class="absolute -top-3 -right-3 bg-[#6b4e3d] text-white rounded-lg w-8 h-8 flex items-center justify-center font-bold shadow-md hover:bg-[#4a3224] transition">✕</button>
+            
+            <div class="flex flex-row gap-6 w-full">
+                <div class="w-2/5 shrink-0 flex flex-col gap-2 items-center">
+                    <img id="detail-image" src="" alt="Foto Kerusakan" class="w-full h-36 object-cover rounded-xl shadow-sm border border-gray-300">
+                    <div id="fixed-image-container" class="hidden w-full flex-col items-center">
+                        <span class="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded uppercase mb-1">Bukti Perbaikan:</span>
+                        <img id="detail-fixed-image" src="" alt="Foto Perbaikan" class="w-full h-28 object-cover rounded-xl shadow-sm border border-emerald-400">
+                    </div>
+                </div>
+
+                <div class="w-3/5 flex flex-col justify-center gap-3 text-gray-900 cursor-default">
+                    <div class="text-[14px] leading-snug">
                         <span class="font-extrabold">Address : </span>
                         <span id="detail-address" class="font-medium"></span>
                     </div>
                     
-                    <div id="row-detected-type" class="text-[15px] hidden">
+                    <div id="row-detected-type" class="text-[14px] hidden">
                         <span class="font-extrabold">Detected Damage Type : </span>
                         <span id="detail-detected-type" class="font-medium capitalize"></span>
                     </div>
 
-                    <div class="text-[15px] flex items-center gap-2">
+                    <div class="text-[14px] flex items-center gap-2">
                         <span class="font-extrabold" id="label-verifikasi">Damage Type : </span>
-                        
-                        <span id="detail-type" class="font-medium capitalize"></span>
+                        <span id="detail-type" class="font-medium capitalize flex items-center gap-2"></span>
                         
                         @if(Auth::check() && Auth::user()->email === 'admin@gmail.com')
-                            <select id="edit-damage-type" class="hidden font-bold capitalize border-2 border-[#a38771] rounded-lg pl-3 pr-10 py-1.5 bg-white text-sm text-[#4a3219] focus:ring-2 focus:ring-[#4a3219] focus:border-[#4a3219] cursor-pointer shadow-md min-w-[140px] outline-none transition-all">
+                            <select id="edit-damage-type" class="hidden font-bold capitalize border-2 border-[#a38771] rounded-lg pl-3 pr-8 py-1 bg-white text-sm text-[#4a3219] focus:ring-2 focus:ring-[#4a3219] focus:border-[#4a3219] cursor-pointer shadow-md outline-none transition-all">
                                 <option value="crack">Crack</option>
                                 <option value="pothole">Pothole</option>
                             </select>
                         @endif
                     </div>
                     
-                    <div class="text-[15px]">
+                    <div class="text-[14px]">
                         <span class="font-extrabold">Submitted Date : </span>
                         <span id="detail-date" class="font-medium"></span>
                     </div>
+
+                    @if(Auth::check() && Auth::user()->email === 'admin@gmail.com')
+                    <div class="text-[14px]">
+                        <span class="font-extrabold">Submitted By : </span>
+                        <span id="detail-submitter" class="font-medium capitalize text-amber-800 font-semibold"></span>
+                    </div>
+                    @endif
                 </div>
-
-                @if(Auth::check() && Auth::user()->email === 'admin@gmail.com')
-                <div id="admin-action-buttons" class="hidden flex gap-3 mt-2">
-                    <form id="approve-form" method="POST" action="" class="flex-1" onsubmit="return handleApproveSubmit(this);">
-                        @csrf
-                        @method('PATCH')
-                        
-                        <input type="hidden" name="damage_type" id="approve-damage-type-input" value="">
-
-                        <button type="submit" class="w-full bg-[#1e7b2e] text-white py-2 rounded-lg font-bold shadow hover:bg-green-700 transition text-sm">
-                            Approve
-                        </button>
-                    </form>
-
-                    <form id="delete-form" method="POST" action="" class="flex-1" onsubmit="return handleDeleteSubmit(this);">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="w-full bg-[#cc0000] text-white py-2 rounded-lg font-bold shadow hover:bg-red-700 transition text-sm">
-                            Delete
-                        </button>
-                    </form>
-                </div>
-                @endif
             </div>
+
+            @auth
+            <div id="upload-fixed-container" class="hidden w-full mt-2 pt-4 border-t border-[#d8c8b8]">
+                <form id="upload-fixed-form" action="" method="POST" enctype="multipart/form-data" onsubmit="return handleFormSubmit(this);" class="flex items-center gap-4">
+                    @csrf
+                    <div class="flex-1">
+                        <label class="block font-bold text-[#4a3219] text-xs mb-1">Laporkan Jalan Ini Sudah Diperbaiki (Upload Bukti):</label>
+                        <input type="file" name="fixed_image" accept="image/*" required class="block w-full text-xs text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-bold file:bg-[#a38771] file:text-white hover:file:bg-[#8c7460] cursor-pointer">
+                    </div>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold transition text-sm whitespace-nowrap shadow">Kirim Bukti</button>
+                </form>
+            </div>
+            @endauth
+
+            @if(Auth::check() && Auth::user()->email === 'admin@gmail.com')
+            <div id="admin-action-buttons" class="hidden flex-wrap gap-2 mt-2 pt-3 border-t border-[#d8c8b8]">
+                <form id="approve-form" method="POST" action="" class="flex-1 min-w-[45%] hidden" onsubmit="return handleFormSubmit(this);">
+                    @csrf @method('PATCH')
+                    <input type="hidden" name="damage_type" id="approve-damage-type-input" value="">
+                    <button type="submit" class="w-full bg-[#1e7b2e] text-white py-2 rounded-lg font-bold shadow hover:bg-green-700 transition text-sm">Approve Peta</button>
+                </form>
+                <form id="approve-fixed-form" method="POST" action="" class="flex-1 min-w-[45%] hidden" onsubmit="return handleFormSubmit(this, 'Validasi jalan selesai diperbaiki? Data ini akan hilang dari peta publik.');">
+                    @csrf @method('PATCH')
+                    <button type="submit" class="w-full bg-[#047857] text-white py-2 rounded-lg font-bold shadow hover:bg-emerald-700 transition text-sm">Validasi Selesai (Arsipkan)</button>
+                </form>
+                <form id="reject-form" method="POST" action="" class="flex-1 min-w-[45%] hidden" onsubmit="return handleFormSubmit(this, 'Tolak laporan awal ini?');">
+                    @csrf @method('PATCH')
+                    <button type="submit" class="w-full bg-[#d97706] text-white py-2 rounded-lg font-bold shadow hover:bg-yellow-600 transition text-sm">Reject Laporan</button>
+                </form>
+                <form id="delete-form" method="POST" action="" class="flex-1 min-w-[45%] hidden" onsubmit="return handleFormSubmit(this, 'Yakin ingin MENGHAPUS PERMANEN laporan beserta fotonya?');">
+                    @csrf @method('DELETE')
+                    <button type="submit" class="w-full bg-[#cc0000] text-white py-2 rounded-lg font-bold shadow hover:bg-red-700 transition text-sm">Delete Permanen</button>
+                </form>
+            </div>
+            @endif
         </div>
 
         <div id="modalOverlay" class="fixed inset-0 bg-black/50 z-[1000] hidden opacity-0 transition-opacity duration-300"></div>
-
+        
         <div id="loginModal" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#eaddcf] rounded-xl shadow-2xl z-[1001] w-[90%] max-w-md hidden opacity-0 scale-95 transition-all duration-300 overflow-hidden">
             <div class="flex justify-between items-center px-6 py-4 border-b border-[#d8c8b8]">
                 <h2 class="text-lg font-bold text-gray-900">Notifikasi</h2>
@@ -304,66 +343,147 @@
             </div>
             <div class="px-6 py-8 text-center">
                 <h3 class="font-bold text-gray-900 text-lg mb-2">Login Untuk Upload</h3>
-                <p class="text-gray-800 text-sm mb-6">Anda Harus Login Untuk Mengupload Foto</p>
-                <a href="{{ route('login') }}" class="inline-block bg-[#4a3219] text-white px-8 py-2 rounded-full font-semibold hover:bg-[#382613] transition shadow-md">
-                    Login
-                </a>
+                <p class="text-gray-800 text-sm mb-6">Anda Harus Login Untuk Mengupload Foto/Bukti Perbaikan</p>
+                <a href="{{ route('login') }}" class="inline-block bg-[#4a3219] text-white px-8 py-2 rounded-full font-semibold hover:bg-[#382613] transition shadow-md">Login</a>
+            </div>
+        </div>
+
+        <div id="helpModal" x-data="{ activeTab: 'konsep' }" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#eaddcf] rounded-xl shadow-2xl z-[1001] w-[95%] max-w-xl hidden opacity-0 scale-95 transition-all duration-300 overflow-hidden border border-[#c1b1a3]">
+            
+            <div class="flex justify-between items-center px-6 py-4 border-b border-[#d8c8b8] bg-[#e3d1c0]">
+                <h2 class="text-xl font-extrabold text-gray-900 flex items-center gap-2">
+                    <svg class="w-6 h-6 text-[#4a3219]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Informasi & Panduan Aplikasi
+                </h2>
+                <button onclick="closeHelpModal()" class="text-[#4a3219] hover:text-red-600 transition font-bold text-3xl leading-none">&times;</button>
+            </div>
+
+            <div class="flex border-b border-[#d8c8b8] bg-[#f4eae1]">
+                <button @click="activeTab = 'konsep'" :class="activeTab === 'konsep' ? 'border-b-2 border-[#4a3219] text-[#4a3219] font-extrabold bg-[#eaddcf]' : 'text-gray-600 font-semibold hover:bg-[#ebdccf]'" class="flex-1 py-3 text-center text-xs sm:text-sm transition-all focus:outline-none">
+                    💡 Konsep & Fitur
+                </button>
+                <button @click="activeTab = 'ai'" :class="activeTab === 'ai' ? 'border-b-2 border-[#4a3219] text-[#4a3219] font-extrabold bg-[#eaddcf]' : 'text-gray-600 font-semibold hover:bg-[#ebdccf]'" class="flex-1 py-3 text-center text-xs sm:text-sm transition-all focus:outline-none">
+                    🤖 Machine Learning
+                </button>
+                <button @click="activeTab = 'panduan'" :class="activeTab === 'panduan' ? 'border-b-2 border-[#4a3219] text-[#4a3219] font-extrabold bg-[#eaddcf]' : 'text-gray-600 font-semibold hover:bg-[#ebdccf]'" class="flex-1 py-3 text-center text-xs sm:text-sm transition-all focus:outline-none">
+                    📍 Cara Pakai
+                </button>
+            </div>
+
+            <div class="px-6 py-6 text-gray-800 text-sm max-h-[60vh] overflow-y-auto cursor-default">
+                
+                <div x-show="activeTab === 'konsep'" x-transition class="space-y-4">
+                    <p class="leading-relaxed">
+                        <strong>Map Kerusakan Jalan</strong> adalah platform pemetaan berbasis partisipasi publik (*crowdsourcing*). Web ini dirancang untuk menjembatani masyarakat dan pengelola infrastruktur dalam melaporkan serta memantau kondisi jalan rusak secara transparan dan *real-time*.
+                    </p>
+                    <div class="bg-[#ebdccf] p-4 rounded-xl border border-[#d8c8b8]">
+                        <h4 class="font-bold text-[#4a3219] mb-2">Fitur Utama:</h4>
+                        <ul class="list-disc pl-5 space-y-1.5 text-xs sm:text-sm text-gray-700">
+                            <li><strong>Peta Interaktif:</strong> Visualisasi sebaran titik kerusakan jalan (*Pothole* & *Cracks*).</li>
+                            <li><strong>Pelaporan Mandiri:</strong> Unggah foto jalan rusak langsung di lokasi kejadian.</li>
+                            <li><strong>Validasi Perbaikan:</strong> Warga bisa mengirimkan bukti foto jika jalan di titik tersebut telah selesai diperbaiki.</li>
+                            <li><strong>Notifikasi Status:</strong> Pantau apakah laporan Anda disetujui, ditolak, atau sudah selesai diperbaiki oleh Admin.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div x-show="activeTab === 'ai'" x-transition class="space-y-4">
+                    <div class="flex items-center gap-3 bg-amber-100 border border-amber-300 p-3 rounded-xl text-amber-900">
+                        <span class="text-2xl">⚡</span>
+                        <p class="text-xs font-semibold leading-tight">Sistem ini ditenagai AI canggih untuk memvalidasi gambar secara otomatis guna menghindari kesalahan pelaporan!</p>
+                    </div>
+                    <p class="leading-relaxed text-xs sm:text-sm">
+                        Saat Anda mengunggah foto kerusakan, sistem di latar belakang memprosesnya menggunakan model <strong>YOLOv11m (You Only Look Once v11 medium)</strong>. Ini adalah teknologi <em>Computer Vision</em> mutakhir yang dirancang khusus untuk mendeteksi objek dengan kecepatan dan akurasi tinggi.
+                    </p>
+                    <h4 class="font-extrabold text-[#4a3219] text-xs uppercase tracking-wider mt-2">Bagaimana Cara Kerjanya?</h4>
+                    <ol class="list-decimal pl-5 space-y-2 text-xs sm:text-sm">
+                        <li><strong>Pemindaian Cepat:</strong> Gambar yang Anda unggah langsung dianalisis pikselnya oleh arsitektur AI YOLOv11m.</li>
+                        <li><strong>Deteksi Objek:</strong> Model ini mengenali pola visual spesifik untuk membedakan secara otomatis apakah kerusakan jalan tersebut tergolong <span class="text-red-600 font-bold">Pothole (Lubang)</span> atau <span class="text-blue-600 font-bold">Cracks (Retakan)</span>.</li>
+                        <li><strong>Validasi Silang:</strong> Hasil deteksi cerdas AI (<em>Detected Type</em>) ini kemudian disandingkan dengan laporan Anda, membantu Admin memverifikasi dan menyetujui laporan dengan akurat.</li>
+                    </ol>
+                </div>
+
+                <div x-show="activeTab === 'panduan'" x-transition class="space-y-3">
+                    <ul class="space-y-3 text-xs sm:text-sm">
+                        <li class="flex gap-3">
+                            <span class="font-bold text-[#4a3219]">1.</span> 
+                            <span><strong>Melihat Peta:</strong> Titik lingkaran di peta menandakan lokasi. Warna <span class="text-red-600 font-bold">Merah</span> untuk <em>Pothole</em> dan warna <span class="text-blue-600 font-bold">Biru</span> untuk <em>Cracks</em>. Klik titik untuk melihat detail foto.</span>
+                        </li>
+                        <li class="flex gap-3">
+                            <span class="font-bold text-[#4a3219]">2.</span> 
+                            <span><strong>Melaporkan Titik Baru:</strong> Silakan login terlebih dahulu, buka sidebar kiri, lalu klik tombol <strong>Upload</strong>. Isi data dan unggah foto jalan rusak.</span>
+                        </li>
+                        <li class="flex gap-3">
+                            <span class="font-bold text-[#4a3219]">3.</span> 
+                            <span><strong>Konfirmasi Perbaikan:</strong> Jika jalan pada titik tertentu sudah mulus kembali, klik titik tersebut, lalu gunakan formulir di panel bawah untuk mengirimkan foto bukti perbaikan terbaru Anda.</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="mt-6 text-center">
+                    <button onclick="closeHelpModal()" class="bg-[#4a3219] text-white px-8 py-2 rounded-full font-semibold hover:bg-[#382613] transition shadow-md text-xs sm:text-sm">
+                        Saya Mengerti
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Fungsi JS untuk mengunci tombol Approve saat diklik
-        function handleApproveSubmit(form) {
+        function handleFormSubmit(form, confirmMsg = null) {
+            if (confirmMsg && !confirm(confirmMsg)) return false;
             const btn = form.querySelector('button[type="submit"]');
             if (btn.disabled) return false; 
-            
-            btn.disabled = true;
-            btn.innerHTML = 'Loading...';
-            btn.classList.add('opacity-70', 'cursor-not-allowed');
-            return true;
+            btn.disabled = true; btn.innerHTML = 'Loading...'; btn.classList.add('opacity-70', 'cursor-not-allowed'); return true;
         }
 
-        // Fungsi JS untuk mengunci tombol Delete saat diklik
-        function handleDeleteSubmit(form) {
-            if (confirm('Yakin ingin menghapus laporan ini?')) {
-                const btn = form.querySelector('button[type="submit"]');
-                if (btn.disabled) return false; 
-                
-                btn.disabled = true;
-                btn.innerHTML = 'Loading...';
-                btn.classList.add('opacity-70', 'cursor-not-allowed');
-                return true;
-            }
-            return false; 
-        }
-
+        // Fungsi Modal Login
         function openModal() {
-            const overlay = document.getElementById('modalOverlay');
-            const modal = document.getElementById('loginModal');
-            overlay.classList.remove('hidden');
-            modal.classList.remove('hidden');
-            setTimeout(() => {
-                overlay.classList.remove('opacity-0');
-                modal.classList.remove('opacity-0', 'scale-95');
-            }, 10);
+            const overlay = document.getElementById('modalOverlay'); const modal = document.getElementById('loginModal');
+            overlay.classList.remove('hidden'); modal.classList.remove('hidden');
+            setTimeout(() => { overlay.classList.remove('opacity-0'); modal.classList.remove('opacity-0', 'scale-95'); }, 10);
         }
 
         function closeModal() {
-            const overlay = document.getElementById('modalOverlay');
-            const modal = document.getElementById('loginModal');
-            overlay.classList.add('opacity-0');
+            const overlay = document.getElementById('modalOverlay'); const modal = document.getElementById('loginModal');
             modal.classList.add('opacity-0', 'scale-95');
-            setTimeout(() => {
-                overlay.classList.add('hidden');
-                modal.classList.add('hidden');
-            }, 300);
+            
+            if (document.getElementById('helpModal').classList.contains('hidden')) {
+                overlay.classList.add('opacity-0');
+                setTimeout(() => { overlay.classList.add('hidden'); modal.classList.add('hidden'); }, 300);
+            } else {
+                setTimeout(() => { modal.classList.add('hidden'); }, 300);
+            }
         }
 
-        window.addEventListener('click', function(e) {
-            const overlay = document.getElementById('modalOverlay');
-            if (e.target === overlay) { closeModal(); }
+        // Fungsi Modal Help / About Us
+        function openHelpModal() {
+            const overlay = document.getElementById('modalOverlay'); const modal = document.getElementById('helpModal');
+            overlay.classList.remove('hidden'); modal.classList.remove('hidden');
+            setTimeout(() => { overlay.classList.remove('opacity-0'); modal.classList.remove('opacity-0', 'scale-95'); }, 10);
+        }
+
+        function closeHelpModal() {
+            const overlay = document.getElementById('modalOverlay'); const modal = document.getElementById('helpModal');
+            modal.classList.add('opacity-0', 'scale-95');
+            
+            if (document.getElementById('loginModal').classList.contains('hidden')) {
+                overlay.classList.add('opacity-0');
+                setTimeout(() => { overlay.classList.add('hidden'); modal.classList.add('hidden'); }, 300);
+            } else {
+                setTimeout(() => { modal.classList.add('hidden'); }, 300);
+            }
+        }
+
+        window.addEventListener('click', function(e) { 
+            const overlay = document.getElementById('modalOverlay'); 
+            if (e.target === overlay) { 
+                closeModal(); 
+                closeHelpModal(); 
+            } 
         });
 
         document.addEventListener("DOMContentLoaded", function () {
@@ -376,17 +496,9 @@
 
             const detailPopup = document.getElementById('damage-detail-popup');
             const closePopupBtn = document.getElementById('closeDetailPopupBtn');
+            closePopupBtn.addEventListener('click', () => { detailPopup.classList.add('hidden'); detailPopup.classList.remove('flex'); });
 
-            closePopupBtn.addEventListener('click', () => {
-                detailPopup.classList.add('hidden');
-                detailPopup.classList.remove('flex'); 
-            });
-
-            var map = L.map('map', { 
-                zoomControl: false, 
-                attributionControl: false 
-            }).setView([-6.200, 106.845], 13);
-            
+            var map = L.map('map', { zoomControl: false, attributionControl: false }).setView([-6.200, 106.845], 13);
             L.control.zoom({ position: 'bottomright' }).addTo(map);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
@@ -394,11 +506,14 @@
             var clickLayer = L.layerGroup().addTo(map);
 
             var isAdmin = @json($isAdmin);
+            var currentUserId = @json(Auth::id()); 
             var locations = @json($dbSubmissions);
-            var baseUrl = "{{ url('/admin/report') }}"; 
+            var baseUrlAdmin = "{{ url('/admin/report') }}"; 
+            var baseUrlUser = "{{ url('/submissions') }}"; 
 
             function getColor(type, status) {
                 if (status === 'pending') return 'gray'; 
+                if (status === 'pending_fixed') return 'orange'; 
                 if (type === 'crack') return 'blue';
                 if (type === 'pothole') return 'red';
                 return 'gray'; 
@@ -410,27 +525,16 @@
                 markerLayer.clearLayers();
 
                 locations.forEach(loc => {
-                    let filterCategory = (loc.status === 'pending') ? 'pending' : loc.type;
+                    let filterCategory = loc.type;
+                    if (loc.status === 'pending') filterCategory = 'pending';
+                    if (loc.status === 'pending_fixed') filterCategory = 'pending_fixed';
 
                     if (!activeFilters.includes(filterCategory)) return;
 
-                    let marker = L.circleMarker([loc.lat, loc.lng], {
-                        color: getColor(loc.type, loc.status),
-                        radius: 8,       
-                        fillOpacity: 0.8,
-                        weight: 2        
-                    });
+                    let marker = L.circleMarker([loc.lat, loc.lng], { color: getColor(loc.type, loc.status), radius: 8, fillOpacity: 0.8, weight: 2 });
 
-                    marker.on('mouseover', function (e) {
-                        this.setRadius(14); 
-                        this.setStyle({ fillOpacity: 1, weight: 3 }); 
-                        this.bringToFront(); 
-                    });
-
-                    marker.on('mouseout', function (e) {
-                        this.setRadius(8); 
-                        this.setStyle({ fillOpacity: 0.8, weight: 2 }); 
-                    });
+                    marker.on('mouseover', function (e) { this.setRadius(14); this.setStyle({ fillOpacity: 1, weight: 3 }); this.bringToFront(); });
+                    marker.on('mouseout', function (e) { this.setRadius(8); this.setStyle({ fillOpacity: 0.8, weight: 2 }); });
 
                     marker.on('click', function(e) {
                         L.DomEvent.stopPropagation(e);
@@ -438,66 +542,90 @@
                         document.getElementById('detail-address').innerText = loc.address;
                         document.getElementById('detail-date').innerText = loc.date;
                         document.getElementById('detail-image').src = loc.image;
-                        
                         document.getElementById('detail-detected-type').innerText = loc.ai_type;
                         
+                        if (isAdmin) {
+                            let submitterEl = document.getElementById('detail-submitter');
+                            if(submitterEl) submitterEl.innerText = loc.submitter;
+                        }
+                        
+                        let fixedImgContainer = document.getElementById('fixed-image-container');
+                        if (loc.fixed_image) {
+                            document.getElementById('detail-fixed-image').src = loc.fixed_image;
+                            fixedImgContainer.classList.remove('hidden'); fixedImgContainer.classList.add('flex');
+                        } else {
+                            fixedImgContainer.classList.add('hidden'); fixedImgContainer.classList.remove('flex');
+                        }
+
                         let typeTextSpan = document.getElementById('detail-type');
                         let editDropdown = document.getElementById('edit-damage-type');
                         let approveInput = document.getElementById('approve-damage-type-input');
                         let labelVerifikasi = document.getElementById('label-verifikasi');
                         let rowDetectedType = document.getElementById('row-detected-type'); 
+                        let uploadFixedContainer = document.getElementById('upload-fixed-container');
 
+                        if(uploadFixedContainer) uploadFixedContainer.classList.add('hidden');
+                        
                         if (isAdmin) {
                             let adminActions = document.getElementById('admin-action-buttons');
                             if (adminActions) {
-                                document.getElementById('approve-form').action = baseUrl + '/' + loc.id + '/approve';
-                                document.getElementById('delete-form').action = baseUrl + '/' + loc.id;
+                                let approveForm = document.getElementById('approve-form');
+                                let approveFixedForm = document.getElementById('approve-fixed-form');
+                                let rejectForm = document.getElementById('reject-form');
+                                let deleteForm = document.getElementById('delete-form');
 
-                                if (loc.status === 'approved') {
-                                    document.getElementById('approve-form').classList.add('hidden');
-                                    if(editDropdown) editDropdown.classList.add('hidden');
-                                    
-                                    rowDetectedType.classList.add('hidden'); 
-                                    labelVerifikasi.innerText = 'Damage Type : ';
-                                    typeTextSpan.innerText = loc.type;
-                                    typeTextSpan.classList.remove('hidden');
-                                } else {
-                                    document.getElementById('approve-form').classList.remove('hidden');
-                                    typeTextSpan.classList.add('hidden'); 
-                                    
-                                    rowDetectedType.classList.remove('hidden'); 
-                                    labelVerifikasi.innerText = 'Verifikasi Damage Type : ';
-                                    
+                                if(approveForm) approveForm.action = baseUrlAdmin + '/' + loc.id + '/approve';
+                                if(approveFixedForm) approveFixedForm.action = baseUrlAdmin + '/' + loc.id + '/approve-fixed';
+                                if(rejectForm) rejectForm.action = baseUrlAdmin + '/' + loc.id + '/reject';
+                                if(deleteForm) deleteForm.action = baseUrlAdmin + '/' + loc.id;
+
+                                approveForm.classList.add('hidden'); approveFixedForm.classList.add('hidden'); rejectForm.classList.add('hidden'); deleteForm.classList.add('hidden');
+
+                                if (loc.status === 'pending') {
+                                    approveForm.classList.remove('hidden'); rejectForm.classList.remove('hidden');
+                                    typeTextSpan.classList.add('hidden'); rowDetectedType.classList.remove('hidden'); labelVerifikasi.innerText = 'Verifikasi Type : ';
                                     if(editDropdown) {
-                                        editDropdown.classList.remove('hidden');
-                                        editDropdown.value = loc.type;
-                                        
+                                        editDropdown.classList.remove('hidden'); editDropdown.value = loc.type;
                                         if(approveInput) approveInput.value = loc.type;
-                                        
-                                        editDropdown.onchange = function() {
-                                            if(approveInput) approveInput.value = this.value;
-                                        };
+                                        editDropdown.onchange = function() { if(approveInput) approveInput.value = this.value; };
                                     }
+                                } else if (loc.status === 'approved') {
+                                    deleteForm.classList.remove('hidden');
+                                    if(editDropdown) editDropdown.classList.add('hidden');
+                                    rowDetectedType.classList.add('hidden'); labelVerifikasi.innerText = 'Damage Type : ';
+                                    typeTextSpan.innerHTML = loc.type; typeTextSpan.classList.remove('hidden');
+
+                                    if (uploadFixedContainer) {
+                                        uploadFixedContainer.classList.remove('hidden');
+                                        document.getElementById('upload-fixed-form').action = baseUrlUser + '/' + loc.id + '/road-fixed';
+                                    }
+                                } else if (loc.status === 'pending_fixed') {
+                                    approveFixedForm.classList.remove('hidden'); deleteForm.classList.remove('hidden');
+                                    if(editDropdown) editDropdown.classList.add('hidden');
+                                    rowDetectedType.classList.add('hidden'); labelVerifikasi.innerText = 'Status Laporan : ';
+                                    typeTextSpan.innerHTML = `${loc.type} <span class="ml-2 text-[10px] bg-orange-500 text-white px-2 py-0.5 rounded-full uppercase font-bold">Menunggu Validasi</span>`;
+                                    typeTextSpan.classList.remove('hidden');
                                 }
-                                
-                                adminActions.classList.remove('hidden');
-                                adminActions.classList.add('flex');
+                                adminActions.classList.remove('hidden'); adminActions.classList.add('flex');
                             }
                         } else {
-                            let displayType = loc.type;
-                            if (loc.status === 'pending') {
-                                displayType += ' (Pending)';
+                            let displayHTML = loc.type;
+                            if (loc.status === 'pending_fixed') {
+                                displayHTML += ' <span class="ml-2 text-[10px] bg-orange-500 text-white px-2 py-0.5 rounded-full uppercase font-bold shadow-sm">Menunggu Validasi Admin</span>';
                             }
-                            
-                            rowDetectedType.classList.add('hidden'); 
-                            labelVerifikasi.innerText = 'Damage Type : ';
-                            typeTextSpan.innerText = displayType;
-                            typeTextSpan.classList.remove('hidden');
+                            rowDetectedType.classList.add('hidden'); labelVerifikasi.innerText = 'Damage Type : ';
+                            typeTextSpan.innerHTML = displayHTML; typeTextSpan.classList.remove('hidden');
                             if(editDropdown) editDropdown.classList.add('hidden');
+
+                            if (loc.status === 'approved' && uploadFixedContainer) {
+                                if (currentUserId === loc.user_id) {
+                                    uploadFixedContainer.classList.remove('hidden');
+                                    document.getElementById('upload-fixed-form').action = baseUrlUser + '/' + loc.id + '/road-fixed';
+                                }
+                            }
                         }
 
-                        detailPopup.classList.remove('hidden');
-                        detailPopup.classList.add('flex');
+                        detailPopup.classList.remove('hidden'); detailPopup.classList.add('flex');
                     });
 
                     marker.addTo(markerLayer);
@@ -513,61 +641,36 @@
             filterBtns.forEach(btn => {
                 btn.addEventListener('click', function() {
                     let type = this.dataset.type;
-
                     if (activeFilters.includes(type)) {
                         activeFilters = activeFilters.filter(t => t !== type);
-                        this.classList.remove('bg-[#4a3219]');
-                        this.classList.add('bg-[#a38771]');
-                        detailPopup.classList.add('hidden');
-                        detailPopup.classList.remove('flex');
+                        this.classList.remove('bg-[#4a3219]'); this.classList.add('bg-[#a38771]');
+                        detailPopup.classList.add('hidden'); detailPopup.classList.remove('flex');
                     } else {
                         activeFilters.push(type);
-                        this.classList.remove('bg-[#a38771]');
-                        this.classList.add('bg-[#4a3219]');
+                        this.classList.remove('bg-[#a38771]'); this.classList.add('bg-[#4a3219]');
                     }
-
-                    clickLayer.clearLayers();
-                    loadMarkers();
+                    clickLayer.clearLayers(); loadMarkers();
                 });
             });
 
             clearFiltersBtn.addEventListener('click', function() {
                 activeFilters = []; 
-                filterBtns.forEach(btn => {
-                    btn.classList.remove('bg-[#4a3219]');
-                    btn.classList.add('bg-[#a38771]');
-                });
-                detailPopup.classList.add('hidden');
-                detailPopup.classList.remove('flex');
-                clickLayer.clearLayers();
-                loadMarkers();
+                filterBtns.forEach(btn => { btn.classList.remove('bg-[#4a3219]'); btn.classList.add('bg-[#a38771]'); });
+                detailPopup.classList.add('hidden'); detailPopup.classList.remove('flex');
+                clickLayer.clearLayers(); loadMarkers();
             });
 
             selectAllFiltersBtn.addEventListener('click', function() {
-                activeFilters = ['crack', 'pothole'];
-                if (isAdmin) {
-                    activeFilters.push('pending');
-                }
-                
-                filterBtns.forEach(btn => {
-                    btn.classList.remove('bg-[#a38771]');
-                    btn.classList.add('bg-[#4a3219]');
-                });
-                clickLayer.clearLayers();
-                loadMarkers();
+                activeFilters = ['crack', 'pothole']; 
+                if (isAdmin) { activeFilters.push('pending', 'pending_fixed'); }
+                filterBtns.forEach(btn => { btn.classList.remove('bg-[#a38771]'); btn.classList.add('bg-[#4a3219]'); });
+                clickLayer.clearLayers(); loadMarkers();
             });
 
             map.on('click', function(e) {
-                clickLayer.clearLayers();
-                detailPopup.classList.add('hidden');
-                detailPopup.classList.remove('flex');
-
-                L.circleMarker(e.latlng, {
-                    color: 'black',
-                    radius: 8
-                }).addTo(clickLayer)
-                .bindPopup("Koordinat Baru: " + e.latlng.lat.toFixed(5) + ", " + e.latlng.lng.toFixed(5))
-                .openPopup();
+                clickLayer.clearLayers(); detailPopup.classList.add('hidden'); detailPopup.classList.remove('flex');
+                L.circleMarker(e.latlng, { color: 'black', radius: 8 }).addTo(clickLayer)
+                .bindPopup("Koordinat Baru: " + e.latlng.lat.toFixed(5) + ", " + e.latlng.lng.toFixed(5)).openPopup();
             });
         });
     </script>

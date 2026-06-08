@@ -8,62 +8,74 @@ use Illuminate\Support\Facades\Storage;
 
 class AdminController extends Controller
 {
-    // Menampilkan Halaman List Admin (Menggantikan Dashboard Peta Lama)
     public function index()
     {
         if (auth()->guest() || auth()->user()->email !== 'admin@gmail.com') {
-            abort(403, 'Akses Ditolak.');
-        }
-
-        // Ambil data laporan yang masih pending
-        $pendingReports = RoadDamageSubmission::where('status', 'pending')->latest()->get();
-        
-        // Ambil semua data laporan untuk tab Delete Disaster
-        $allReports = RoadDamageSubmission::latest()->get();
-
-        return view('admin.dashboard', compact('pendingReports', 'allReports'));
-    }
-
-    // =========================================================================
-    // FITUR SETUJUI LAPORAN (APPROVE) - UPDATE TANGKAP DAMAGE TYPE
-    // =========================================================================
-    public function approve(Request $request, $id)
-    {
-        if (auth()->guest() || auth()->user()->email !== 'admin@gmail.com') {
             abort(403);
         }
 
-        $report = RoadDamageSubmission::findOrFail($id);
+        // 1. Ambil data laporan kerusakan baru beserta data usernya
+        $pendingReports = RoadDamageSubmission::with('user')->where('status', 'pending')->latest()->get();
         
-        // 1. Update status laporan menjadi disetujui
-        $report->status = 'approved';
+        // 2. Ambil data pengajuan perbaikan jalan beserta data usernya
+        $pendingFixedReports = RoadDamageSubmission::with('user')->where('status', 'pending_fixed')->latest()->get();
+        
+        // 3. Ambil semua data selain pending untuk Tab History & Delete beserta data usernya
+        $allReports = RoadDamageSubmission::with('user')->whereIn('status', ['approved', 'fixed', 'denied'])->latest()->get();
 
-        // 2. Jika Admin mengubah tipe kerusakan di dropdown, tangkap dan update datanya
+        return view('admin.dashboard', compact('pendingReports', 'pendingFixedReports', 'allReports'));
+    }
+
+    public function approve(Request $request, $id)
+    {
+        $report = RoadDamageSubmission::findOrFail($id);
+        $report->status = 'approved';
         if ($request->has('damage_type') && !empty($request->damage_type)) {
             $report->damage_type = $request->damage_type;
         }
-
-        // 3. Simpan perubahan ke database
         $report->save();
 
-        return redirect()->back()->with('success', 'Laporan berhasil disetujui dan tipe kerusakan telah diupdate!');
+        return redirect()->back()->with('success', 'Laporan kerusakan disetujui dan ditayangkan di peta.');
     }
 
-    // Fitur Delete Laporan (Delete Disaster)
+    public function approveFixed($id)
+    {
+        $report = RoadDamageSubmission::findOrFail($id);
+        $report->status = 'fixed'; 
+        $report->save();
+
+        return redirect()->back()->with('success', 'Perbaikan jalan tervalidasi! Laporan resmi diarsipkan dan dilepas dari peta aktif.');
+    }
+
+    public function reject($id)
+    {
+        $report = RoadDamageSubmission::findOrFail($id);
+        $report->status = 'denied';
+        $report->save();
+
+        return redirect()->back()->with('success', 'Laporan berhasil ditolak.');
+    }
+
+    // =========================================================================
+    // FITUR DELETE PERMANEN (Mengatasi Error Undefined Method destroy)
+    // =========================================================================
     public function destroy($id)
     {
-        if (auth()->guest() || auth()->user()->email !== 'admin@gmail.com') {
-            abort(403);
-        }
-
         $report = RoadDamageSubmission::findOrFail($id);
         
-        if (Storage::disk('public')->exists($report->image_path)) {
+        // Hapus foto awal dari server jika ada
+        if ($report->image_path && Storage::disk('public')->exists($report->image_path)) {
             Storage::disk('public')->delete($report->image_path);
         }
 
+        // Hapus foto bukti perbaikan dari server jika ada
+        if ($report->fixed_image_path && Storage::disk('public')->exists($report->fixed_image_path)) {
+            Storage::disk('public')->delete($report->fixed_image_path);
+        }
+
+        // Hapus baris data dari database
         $report->delete();
 
-        return redirect()->back()->with('success', 'Data laporan berhasil dihapus dari sistem.');
+        return redirect()->back()->with('success', 'Laporan beserta fotonya berhasil dihapus secara permanen dari sistem.');
     }
 }
