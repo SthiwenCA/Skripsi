@@ -1,4 +1,4 @@
-# 🛣️ E-Apps Deteksi Kerusakan Jalan (Laravel + YOLOv8)
+# 🛣️ E-Apps Deteksi Kerusakan Jalan (Laravel + YOLOv11m)
 
 Repositori ini berisi sistem E-Apps untuk mendeteksi kerusakan jalan secara real-time. Sistem ini menggunakan arsitektur modern yang memisahkan antara Web Server berbasis framework **Laravel (PHP)** dan AI API Server berbasis **YOLOv8 (Python)**.
 
