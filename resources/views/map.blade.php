@@ -241,7 +241,7 @@
                     </a>
                 @else
                     <button onclick="openModal()" class="w-full flex items-center justify-center gap-2 bg-[#4a3219] text-white py-2 rounded-full hover:bg-[#382613] transition shadow-md font-semibold text-sm text-center">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg> Login untuk Upload
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3h7a3 3 0 013 3v1"></path></svg> Login untuk Upload
                     </button>
                 @endauth
             </div>
@@ -349,7 +349,6 @@
         </div>
 
         <div id="helpModal" x-data="{ activeTab: 'konsep' }" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#eaddcf] rounded-xl shadow-2xl z-[1001] w-[95%] max-w-xl hidden opacity-0 scale-95 transition-all duration-300 overflow-hidden border border-[#c1b1a3]">
-            
             <div class="flex justify-between items-center px-6 py-4 border-b border-[#d8c8b8] bg-[#e3d1c0]">
                 <h2 class="text-xl font-extrabold text-gray-900 flex items-center gap-2">
                     <svg class="w-6 h-6 text-[#4a3219]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -373,7 +372,6 @@
             </div>
 
             <div class="px-6 py-6 text-gray-800 text-sm max-h-[60vh] overflow-y-auto cursor-default">
-                
                 <div x-show="activeTab === 'konsep'" x-transition class="space-y-4">
                     <p class="leading-relaxed">
                         <strong>Map Kerusakan Jalan</strong> adalah platform pemetaan berbasis partisipasi publik (*crowdsourcing*). Web ini dirancang untuk menjembatani masyarakat dan pengelola infrastruktur dalam melaporkan serta memantau kondisi jalan rusak secara transparan dan *real-time*.
@@ -440,7 +438,6 @@
             btn.disabled = true; btn.innerHTML = 'Loading...'; btn.classList.add('opacity-70', 'cursor-not-allowed'); return true;
         }
 
-        // Fungsi Modal Login
         function openModal() {
             const overlay = document.getElementById('modalOverlay'); const modal = document.getElementById('loginModal');
             overlay.classList.remove('hidden'); modal.classList.remove('hidden');
@@ -459,7 +456,6 @@
             }
         }
 
-        // Fungsi Modal Help / About Us
         function openHelpModal() {
             const overlay = document.getElementById('modalOverlay'); const modal = document.getElementById('helpModal');
             overlay.classList.remove('hidden'); modal.classList.remove('hidden');
@@ -498,9 +494,25 @@
             const closePopupBtn = document.getElementById('closeDetailPopupBtn');
             closePopupBtn.addEventListener('click', () => { detailPopup.classList.add('hidden'); detailPopup.classList.remove('flex'); });
 
-            var map = L.map('map', { zoomControl: false, attributionControl: false }).setView([-6.200, 106.845], 13);
+            // UPDATE: Membatasi layar pengguna (World Wrap prevention)
+            var worldBounds = [
+                [-90, -180],
+                [90, 180]
+            ];
+
+            var map = L.map('map', { 
+                zoomControl: false, 
+                attributionControl: false,
+                maxBounds: worldBounds,       
+                maxBoundsViscosity: 1.0,      
+                minZoom: 2                    
+            }).setView([-6.200, 106.845], 13);
+            
             L.control.zoom({ position: 'bottomright' }).addTo(map);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                noWrap: true                  
+            }).addTo(map);
 
             var markerLayer = L.layerGroup().addTo(map);
             var clickLayer = L.layerGroup().addTo(map);

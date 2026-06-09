@@ -16,7 +16,7 @@ Route::get('/', function () {
 Route::redirect('/dashboard', '/')->name('dashboard');
 
 // =========================================================
-// 2. FITUR KHUSUS USER (PRIVATE)
+// 2. FITUR KHUSUS USER & ADMIN (HANYA BUTUH LOGIN)
 // =========================================================
 Route::middleware('auth')->group(function () {
     
@@ -25,24 +25,15 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // --- FORM PELAPORAN KERUSAKAN JALAN ---
-    Route::get('/submissions/create', [RoadDamageSubmissionController::class, 'create'])->name('submissions.create');
-    Route::post('/submissions', [RoadDamageSubmissionController::class, 'store'])->name('submissions.store');
-    
-    // ---> INI RUTE YANG HILANG SEBELUMNYA <---
-    // Rute untuk user/admin mengirim foto bukti jalan sudah mulus
-    Route::post('/submissions/{id}/road-fixed', [RoadDamageSubmissionController::class, 'submitRoadFixed'])->name('submissions.road-fixed');
+    // --- LIST LAPORAN / HISTORY USER ---
+    Route::get('/my-reports', [RoadDamageSubmissionController::class, 'history'])->name('user.history');
 
     // --- FORM PELAPORAN KERUSAKAN JALAN ---
     Route::get('/submissions/create', [RoadDamageSubmissionController::class, 'create'])->name('submissions.create');
     Route::post('/submissions', [RoadDamageSubmissionController::class, 'store'])->name('submissions.store');
     
-    // Rute untuk user/admin mengirim foto bukti jalan sudah mulus
+    // Rute untuk mengirim foto bukti jalan sudah mulus / diperbaiki
     Route::post('/submissions/{id}/road-fixed', [RoadDamageSubmissionController::class, 'submitRoadFixed'])->name('submissions.road-fixed');
-    
-    // ---> TAMBAHKAN BARIS INI <---
-    // Rute untuk halaman List Laporan / History khusus User
-    Route::get('/my-reports', [RoadDamageSubmissionController::class, 'history'])->name('user.history');
 });
 
 // =========================================================
@@ -59,6 +50,15 @@ Route::middleware('auth')->group(function () {
     // --- ROUTE HAPUS PERMANEN (DELETE DISASTER) ---
     Route::delete('/admin/report/{id}', [AdminController::class, 'destroy'])->name('admin.report.destroy');
 });
+
+// =========================================================
+// 4. HALAMAN SUKSES VERIFIKASI (DIUBAH MENJADI REDIRECT KE MAP)
+// =========================================================
+// Menghindari error view [auth.verified] not found dengan me-redirect ke home beserta pesan sukses (Toast alert)
+Route::get('/email/verified', function () {
+    return redirect()->route('home')->with('success', 'Email Anda berhasil diverifikasi! Selamat datang di Map Kerusakan Jalan.');
+})->middleware(['auth', 'verified'])->name('auth.verified');
+
 
 // Memanggil rute-rute otentikasi bawaan Breeze
 require __DIR__.'/auth.php';

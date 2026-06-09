@@ -32,8 +32,12 @@ class RegisteredUserController extends Controller
     {
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email:dns', 'max:255', 'unique:'.User::class],
+            // Tambahkan validasi ends_with:@gmail.com di sini
+            'email' => ['required', 'string', 'lowercase', 'email:dns', 'max:255', 'unique:'.User::class, 'ends_with:@gmail.com'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+        ], [
+            // Tambahkan pesan error kustom dalam Bahasa Indonesia
+            'email.ends_with' => 'Pendaftaran hanya diperbolehkan menggunakan alamat @gmail.com.',
         ]);
 
         $user = User::create([
@@ -44,8 +48,10 @@ class RegisteredUserController extends Controller
 
         event(new Registered($user));
 
-        Auth::login($user);
+        // 1. Matikan fungsi auto-login bawaan Laravel
+        // Auth::login($user);
 
-        return redirect(route('dashboard', absolute: false));
+        // 2. Redirect ke halaman login dan kirim pesan sukses
+        return redirect(route('login'))->with('success', 'Akun berhasil dibuat! Silakan login untuk mulai menggunakan aplikasi.');
     }
 }
