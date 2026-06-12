@@ -7,6 +7,13 @@
 
     <title>Map Kerusakan Jalan</title>
 
+    <script>
+        // Jika user baru pertama kali (belum ada data di localStorage), lempar ke halaman informasi
+        if (localStorage.getItem('hasVisitedBefore') !== 'true') {
+            window.location.href = "{{ route('information') }}";
+        }
+    </script>
+
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -121,11 +128,11 @@
         </button>
 
         <div class="absolute top-4 right-4 z-[500] flex items-center gap-3">
-            <button onclick="openHelpModal()" class="relative p-2 bg-white rounded-full shadow-lg border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 hover:shadow-xl transition-all duration-200 focus:outline-none flex items-center justify-center group" title="Cara Penggunaan / About Us">
+            <a href="{{ route('information') }}" class="relative p-2 bg-white rounded-full shadow-lg border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 hover:shadow-xl transition-all duration-200 focus:outline-none flex items-center justify-center group" title="Cara Penggunaan / About Us">
                 <svg class="w-6 h-6 text-gray-700 group-hover:text-[#4a3219] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
-            </button>
+            </a>
 
             @auth
                 <div x-data="{ openNotif: false, hideBadge: false }" class="relative">
@@ -347,86 +354,6 @@
                 <a href="{{ route('login') }}" class="inline-block bg-[#4a3219] text-white px-8 py-2 rounded-full font-semibold hover:bg-[#382613] transition shadow-md">Login</a>
             </div>
         </div>
-
-        <div id="helpModal" x-data="{ activeTab: 'konsep' }" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#eaddcf] rounded-xl shadow-2xl z-[1001] w-[95%] max-w-xl hidden opacity-0 scale-95 transition-all duration-300 overflow-hidden border border-[#c1b1a3]">
-            <div class="flex justify-between items-center px-6 py-4 border-b border-[#d8c8b8] bg-[#e3d1c0]">
-                <h2 class="text-xl font-extrabold text-gray-900 flex items-center gap-2">
-                    <svg class="w-6 h-6 text-[#4a3219]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    Informasi & Panduan Aplikasi
-                </h2>
-                <button onclick="closeHelpModal()" class="text-[#4a3219] hover:text-red-600 transition font-bold text-3xl leading-none">&times;</button>
-            </div>
-
-            <div class="flex border-b border-[#d8c8b8] bg-[#f4eae1]">
-                <button @click="activeTab = 'konsep'" :class="activeTab === 'konsep' ? 'border-b-2 border-[#4a3219] text-[#4a3219] font-extrabold bg-[#eaddcf]' : 'text-gray-600 font-semibold hover:bg-[#ebdccf]'" class="flex-1 py-3 text-center text-xs sm:text-sm transition-all focus:outline-none">
-                    💡 Konsep & Fitur
-                </button>
-                <button @click="activeTab = 'ai'" :class="activeTab === 'ai' ? 'border-b-2 border-[#4a3219] text-[#4a3219] font-extrabold bg-[#eaddcf]' : 'text-gray-600 font-semibold hover:bg-[#ebdccf]'" class="flex-1 py-3 text-center text-xs sm:text-sm transition-all focus:outline-none">
-                    🤖 Machine Learning
-                </button>
-                <button @click="activeTab = 'panduan'" :class="activeTab === 'panduan' ? 'border-b-2 border-[#4a3219] text-[#4a3219] font-extrabold bg-[#eaddcf]' : 'text-gray-600 font-semibold hover:bg-[#ebdccf]'" class="flex-1 py-3 text-center text-xs sm:text-sm transition-all focus:outline-none">
-                    📍 Cara Pakai
-                </button>
-            </div>
-
-            <div class="px-6 py-6 text-gray-800 text-sm max-h-[60vh] overflow-y-auto cursor-default">
-                <div x-show="activeTab === 'konsep'" x-transition class="space-y-4">
-                    <p class="leading-relaxed">
-                        <strong>Map Kerusakan Jalan</strong> adalah platform pemetaan berbasis partisipasi publik (*crowdsourcing*). Web ini dirancang untuk menjembatani masyarakat dan pengelola infrastruktur dalam melaporkan serta memantau kondisi jalan rusak secara transparan dan *real-time*.
-                    </p>
-                    <div class="bg-[#ebdccf] p-4 rounded-xl border border-[#d8c8b8]">
-                        <h4 class="font-bold text-[#4a3219] mb-2">Fitur Utama:</h4>
-                        <ul class="list-disc pl-5 space-y-1.5 text-xs sm:text-sm text-gray-700">
-                            <li><strong>Peta Interaktif:</strong> Visualisasi sebaran titik kerusakan jalan (*Pothole* & *Cracks*).</li>
-                            <li><strong>Pelaporan Mandiri:</strong> Unggah foto jalan rusak langsung di lokasi kejadian.</li>
-                            <li><strong>Validasi Perbaikan:</strong> Warga bisa mengirimkan bukti foto jika jalan di titik tersebut telah selesai diperbaiki.</li>
-                            <li><strong>Notifikasi Status:</strong> Pantau apakah laporan Anda disetujui, ditolak, atau sudah selesai diperbaiki oleh Admin.</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div x-show="activeTab === 'ai'" x-transition class="space-y-4">
-                    <div class="flex items-center gap-3 bg-amber-100 border border-amber-300 p-3 rounded-xl text-amber-900">
-                        <span class="text-2xl">⚡</span>
-                        <p class="text-xs font-semibold leading-tight">Sistem ini ditenagai AI canggih untuk memvalidasi gambar secara otomatis guna menghindari kesalahan pelaporan!</p>
-                    </div>
-                    <p class="leading-relaxed text-xs sm:text-sm">
-                        Saat Anda mengunggah foto kerusakan, sistem di latar belakang memprosesnya menggunakan model <strong>YOLOv11m (You Only Look Once v11 medium)</strong>. Ini adalah teknologi <em>Computer Vision</em> mutakhir yang dirancang khusus untuk mendeteksi objek dengan kecepatan dan akurasi tinggi.
-                    </p>
-                    <h4 class="font-extrabold text-[#4a3219] text-xs uppercase tracking-wider mt-2">Bagaimana Cara Kerjanya?</h4>
-                    <ol class="list-decimal pl-5 space-y-2 text-xs sm:text-sm">
-                        <li><strong>Pemindaian Cepat:</strong> Gambar yang Anda unggah langsung dianalisis pikselnya oleh arsitektur AI YOLOv11m.</li>
-                        <li><strong>Deteksi Objek:</strong> Model ini mengenali pola visual spesifik untuk membedakan secara otomatis apakah kerusakan jalan tersebut tergolong <span class="text-red-600 font-bold">Pothole (Lubang)</span> atau <span class="text-blue-600 font-bold">Cracks (Retakan)</span>.</li>
-                        <li><strong>Validasi Silang:</strong> Hasil deteksi cerdas AI (<em>Detected Type</em>) ini kemudian disandingkan dengan laporan Anda, membantu Admin memverifikasi dan menyetujui laporan dengan akurat.</li>
-                    </ol>
-                </div>
-
-                <div x-show="activeTab === 'panduan'" x-transition class="space-y-3">
-                    <ul class="space-y-3 text-xs sm:text-sm">
-                        <li class="flex gap-3">
-                            <span class="font-bold text-[#4a3219]">1.</span> 
-                            <span><strong>Melihat Peta:</strong> Titik lingkaran di peta menandakan lokasi. Warna <span class="text-red-600 font-bold">Merah</span> untuk <em>Pothole</em> dan warna <span class="text-blue-600 font-bold">Biru</span> untuk <em>Cracks</em>. Klik titik untuk melihat detail foto.</span>
-                        </li>
-                        <li class="flex gap-3">
-                            <span class="font-bold text-[#4a3219]">2.</span> 
-                            <span><strong>Melaporkan Titik Baru:</strong> Silakan login terlebih dahulu, buka sidebar kiri, lalu klik tombol <strong>Upload</strong>. Isi data dan unggah foto jalan rusak.</span>
-                        </li>
-                        <li class="flex gap-3">
-                            <span class="font-bold text-[#4a3219]">3.</span> 
-                            <span><strong>Konfirmasi Perbaikan:</strong> Jika jalan pada titik tertentu sudah mulus kembali, klik titik tersebut, lalu gunakan formulir di panel bawah untuk mengirimkan foto bukti perbaikan terbaru Anda.</span>
-                        </li>
-                    </ul>
-                </div>
-
-                <div class="mt-6 text-center">
-                    <button onclick="closeHelpModal()" class="bg-[#4a3219] text-white px-8 py-2 rounded-full font-semibold hover:bg-[#382613] transition shadow-md text-xs sm:text-sm">
-                        Saya Mengerti
-                    </button>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -447,38 +374,14 @@
         function closeModal() {
             const overlay = document.getElementById('modalOverlay'); const modal = document.getElementById('loginModal');
             modal.classList.add('opacity-0', 'scale-95');
-            
-            if (document.getElementById('helpModal').classList.contains('hidden')) {
-                overlay.classList.add('opacity-0');
-                setTimeout(() => { overlay.classList.add('hidden'); modal.classList.add('hidden'); }, 300);
-            } else {
-                setTimeout(() => { modal.classList.add('hidden'); }, 300);
-            }
-        }
-
-        function openHelpModal() {
-            const overlay = document.getElementById('modalOverlay'); const modal = document.getElementById('helpModal');
-            overlay.classList.remove('hidden'); modal.classList.remove('hidden');
-            setTimeout(() => { overlay.classList.remove('opacity-0'); modal.classList.remove('opacity-0', 'scale-95'); }, 10);
-        }
-
-        function closeHelpModal() {
-            const overlay = document.getElementById('modalOverlay'); const modal = document.getElementById('helpModal');
-            modal.classList.add('opacity-0', 'scale-95');
-            
-            if (document.getElementById('loginModal').classList.contains('hidden')) {
-                overlay.classList.add('opacity-0');
-                setTimeout(() => { overlay.classList.add('hidden'); modal.classList.add('hidden'); }, 300);
-            } else {
-                setTimeout(() => { modal.classList.add('hidden'); }, 300);
-            }
+            overlay.classList.add('opacity-0');
+            setTimeout(() => { overlay.classList.add('hidden'); modal.classList.add('hidden'); }, 300);
         }
 
         window.addEventListener('click', function(e) { 
             const overlay = document.getElementById('modalOverlay'); 
             if (e.target === overlay) { 
                 closeModal(); 
-                closeHelpModal(); 
             } 
         });
 
@@ -494,7 +397,6 @@
             const closePopupBtn = document.getElementById('closeDetailPopupBtn');
             closePopupBtn.addEventListener('click', () => { detailPopup.classList.add('hidden'); detailPopup.classList.remove('flex'); });
 
-            // UPDATE: Membatasi layar pengguna (World Wrap prevention)
             var worldBounds = [
                 [-90, -180],
                 [90, 180]

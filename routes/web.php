@@ -8,9 +8,15 @@ use Illuminate\Support\Facades\Route;
 // =========================================================
 // 1. HALAMAN UTAMA (PUBLIC)
 // =========================================================
+// Halaman Peta Interaktif (Sekarang menjadi halaman depan /)
 Route::get('/', function () {
     return view('map');
-})->name('home');
+})->name('map');
+
+// Halaman Informasi & Panduan
+Route::get('/information', function () {
+    return view('landing');
+})->name('information');
 
 // Trick Post-Login Bypass
 Route::redirect('/dashboard', '/')->name('dashboard');
@@ -54,11 +60,10 @@ Route::middleware('auth')->group(function () {
 // =========================================================
 // 4. HALAMAN SUKSES VERIFIKASI (DIUBAH MENJADI REDIRECT KE MAP)
 // =========================================================
-// Menghindari error view [auth.verified] not found dengan me-redirect ke home beserta pesan sukses (Toast alert)
+// Menghindari error view [auth.verified] not found dengan me-redirect ke map beserta pesan sukses (Toast alert)
 Route::get('/email/verified', function () {
-    return redirect()->route('home')->with('success', 'Email Anda berhasil diverifikasi! Selamat datang di Map Kerusakan Jalan.');
+    return redirect()->route('map')->with('success', 'Email Anda berhasil diverifikasi! Selamat datang di Map Kerusakan Jalan.');
 })->middleware(['auth', 'verified'])->name('auth.verified');
-
 
 // Memanggil rute-rute otentikasi bawaan Breeze
 require __DIR__.'/auth.php';
